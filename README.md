@@ -104,15 +104,19 @@ Mode performance maximale pour exploiter tout le potentiel du CPU.
 
 ## 📋 Configuration Requise
 
-J’ai développé le script sur :
-- Ubuntu Server 24.04 LTS (x64)
-- SSD 500 Go minimum
+### J’ai développé et optimisé le script sur :
+- **OS :** Ubuntu Server 24.04 LTS (x64)
+- **Stockage :** SSD ou NVMe 500 Go minimum (Indispensable pour les nœuds)
+- **RAM :** 8 Go minimum (Mode Dual Channel fortement recommandé pour le hashrate)
+- **Réseau :** Fibre optique via Câble Ethernet (Wi-Fi déconseillé pour P2Pool)
 
-Pour recevoir vos récompenses  :
+P2Pool ne tolère pas la latence.
+
+### Pour recevoir vos récompenses  :
 - Une adresse Monero (obligatoire)
 - Une adresse Tari (facultatif)
 
-3 points très importants à comprendre :
+### 3 points très importants à comprendre :
 - Pour recevoir vos récompenses de minage, **utilisez des portefeuilles dédiés au minage** (c’est une question de confidentialité).
 - Vos portefeuilles **ne doivent pas être stockés sur votre RIG** (c’est une question de sécurité).
 - Pour Monero, vous devez impérativement utiliser **l’adresse principale (“Primary address”)** de votre portefeuille, car c’est la seule compatible avec P2Pool.
@@ -163,6 +167,9 @@ R : Non, ce script est optimisé pour le CPU uniquement (RandomX est CPU-friendl
 
 ### Q : Combien de temps pour la synchro initiale ?
 R : 4-24 heures selon votre connexion et hardware. Utilisez un SSD pour accélérer.
+
+### Q : Pourquoi la synchronisation ralentit-elle fortement vers la fin ?
+R : C'est un phénomène tout à fait normal. Les premières années de la blockchain (2014-2017) contiennent des blocs légers qui se téléchargent très vite. À mesure que vous approchez du présent, les blocs deviennent plus lourds et cryptographiquement complexes (plus de transactions, confidentialité renforcée). Votre matériel doit alors vérifier chaque signature mathématique et effectuer des milliers d'écritures disque par seconde, ce qui ralentit naturellement la progression sur les derniers pourcents. Patience, c'est le signe que vous arrivez au sommet de la chaîne.
 
 ### Q : Le Merge Mining Tari impacte-t-il le hashrate Monero ?
 R : Non, aucun impact. Le Merge Mining Tari utilise le même effort de calcul que Monero pour valider des blocs sur deux réseaux simultanément. Cela n'ajoute aucune charge CPU supplémentaire, vous permettant de cumuler des récompenses Tari en "bonus" sans jamais réduire votre hashrate XMR.
