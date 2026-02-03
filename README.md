@@ -1,9 +1,8 @@
 # 🚀 DIYXMR — Stack de Minage Monero par CPU
 
+![License](https://img.shields.io/badge/LICENSE-SOURCE%20AVAILABLE-crimson?style=for-the-badge&logo=adguard&logoColor=white)
 ![Bash](https://img.shields.io/badge/Language-Bash-4EAA25?style=for-the-badge&logo=gnu-bash)
 ![Monero](https://img.shields.io/badge/Monero-XMR-FF6600?style=for-the-badge&logo=monero)
-![Tari](https://img.shields.io/badge/Merge_Mining-Tari-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)
 
 **DIYXMR** est un script Bash “tout-en-un” d'automatisation complet pour déployer, sécuriser et gérer un stack de minage Monero (XMR) performant sur Linux. Il gère l'installation de A à Z, l'optimisation du CPU, la sécurité réseau (Tor/UFW) et permet le **Merge Mining** avec Tari.
 
@@ -11,19 +10,36 @@ Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 
 ---
 
+## ⚠️ Philosophie : Performance & Anti-Censure
+Ce projet est conçu pour la **performance brute** et la **résilience**, pas pour l'anonymat.
+- **Tor = Annuaire :** Le réseau Tor est utilisé uniquement pour la découverte de pairs (Peer Discovery) afin de contourner les blocages FAI.
+- **Clearweb = Transport :** Le flux de minage (les shares) transite en clair sur Internet pour garantir une **latence zéro**.
+
+## ⚡ La Règle d'Or : Latence > Hashrate
+En minage, la vitesse de propagation (Latence) est plus critique que la puissance brute (Hashrate).
+C'est une course de vitesse : **Premier arrivé, premier servi.**
+
+Si vous trouvez un bloc en même temps qu'un autre mineur mais qu'il le propage avant vous à cause d'une latence réseau (VPN/Tor), votre bloc sera rejeté (Orphelin). **Vous aurez brûlé de l'électricité pour rien**.
+
+## 🛑 OpSec : Séparez vos usages
+Il est impossible d'avoir un stack à la fois **anonyme** (lent) et **performant** (rapide) pour le minage.
+Ce script transforme votre machine en serveur de minage dédié : **ne l'utilisez pas pour votre vie privée**.
+
+---
+
 ## ✨ Fonctionnalités Principales
 
 ### 🏗️ Architecture Complète
-* **Monero Node (`monerod`)** : Nœud complet synchronisé, routé via Tor pour la confidentialité.
-* **P2Pool**  : Sidechain décentralisée (0% frais, paiements directs sur votre wallet dès qu’un bloc est trouvé si tu as des shares dans la fenêtre PPLNS ; minimum technique ~0.00027 XMR par payout).
+* **Monero Node (`monerod`)** : Nœud complet en mode **Pruned** (~70 Go). Fonctionne sur le **Clearweb** pour une latence minimale, avec **Tor** servant uniquement d'annuaire de secours pour récupérer des IPs de pairs en cas de blocage FAI.
+* **P2Pool** : Sidechain décentralisée (0% frais, paiements directs sur votre wallet dès qu’un bloc est trouvé si vous avez des shares dans la fenêtre PPLNS ; minimum technique ~0.00027 XMR par payout).
 * **XMRig** : Mineur CPU optimisé automatiquement selon votre matériel.
-* **Tari (Minotari)** : Nœud Tari complet pour le Merge Mining (gagnez du Tari en minant du Monero sans perte de hashrate).
+* **Tari (Minotari)** : Nœud complet (Pruned) pour le **Merge Mining**. Gagnez du Tari en "bonus" sans aucune perte de hashrate Monero.
 
 ### 🛡️ Sécurité & Confidentialité (Hardening)
-* **Anonymat** : Toutes les connexions sortantes des nœuds passent par **Tor** (Onion routing).
+* **Anti-Censure** : Monero et Tari utilisent **Tor** pour la découverte de pairs. Le minage P2Pool reste sur le **Clearweb** pour garantir une **latence minimale** (essentiel pour les gains).
 * **Pare-feu (UFW)** : Configuration automatique stricte et adaptative selon le mode de minage (SOLO / P2Pool NANO-MINI-FULL / MoneroOcean) et les options activées (SSH, Tari) ; seuls les ports requis sont autorisés, le reste est bloqué.
 * **Anti Brute-force** : Installation et configuration de **Fail2Ban** pour SSH.
-* **Réseau** : Désactivation IPv6 (leak protection) et durcissement TCP/IP.
+* **Réseau** : Optimisation de la pile TCP (**BBR**) pour la vitesse et activation des **extensions de confidentialité IPv6** (Privacy Extensions).
 
 ### ⚡ Performance
 * **HugePages & 1GB Pages** : Activation automatique et persistance au redémarrage.
@@ -34,6 +50,7 @@ Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 * **Installation Interactive** : Assistant de configuration au premier lancement.
 * **Dashboard TUI** : Vue en temps réel du hashrate, de la synchro, de la santé système et des logs, avec un menu interactif (raccourcis clavier) pour gérer rapidement les actions courantes (paramètres, mise à jour, affichage des logs, arrêt/nettoyage).
 * **Auto-update** : Système de mise à jour intégré pour le script et les binaires (XMRig, Monero, P2Pool, Tari), avec vérification d’intégrité (SHA256) et validation des signatures (GPG) lorsqu’elles sont disponibles, afin de réduire le risque d’installer des archives altérées.
+
 ---
 
 ## 📊 Modes de Minage
@@ -70,12 +87,12 @@ Minez directement avec votre nœud personnel.
 - 💡 **Idéal pour :** Fermes de gros CPU
 
 ### 🌊 MoneroOcean
-Pool centralisée avec switching automatique.
+Pool centralisé avec switching automatique.
 - ✅ Interface simple
 - ✅ Switching RandomX/Rx/Cn
 - ✅ Taux de change natif
-- ❌ Pool centralisée
-- 💡 **Idéal pour :** Simplicitée, moins de bande passante
+- ❌ Pool centralisé
+- 💡 **Idéal pour :** Simplicité, moins de bande passante
 
 ---
 
@@ -104,15 +121,15 @@ Mode performance maximale pour exploiter tout le potentiel du CPU.
 
 ## 📋 Configuration Requise
 
-### J’ai développé et optimisé le script sur :
+### J’ai développé et optimisé le script pour :
 - **OS :** Ubuntu Server 24.04 LTS (x64)
-- **Stockage :** SSD ou NVMe 500 Go minimum (Indispensable pour les nœuds)
+- **Stockage :** SSD ou NVMe 500 Go recommandé pour les nœuds (HDD déconseillé)
 - **RAM :** 8 Go minimum (Mode Dual Channel fortement recommandé pour le hashrate)
 - **Réseau :** Fibre optique via Câble Ethernet (Wi-Fi déconseillé pour P2Pool)
 
 P2Pool ne tolère pas la latence.
 
-### Pour recevoir vos récompenses  :
+### Pour recevoir vos récompenses :
 - Une adresse Monero (obligatoire)
 - Une adresse Tari (facultatif)
 
@@ -153,14 +170,14 @@ Dans une France, une Europe et un monde où les gouvernements deviennent **de pl
 
 ## ❓ FAQ (Foire Aux Questions)
 
-### Q : Que penses-tu de Monero ?
+### Q : Pourquoi le Monero ?
 R : Monero est le véritable argent liquide numérique : privé, fongible et conçu pour rester accessible à tous, car n'importe qui peut participer au réseau avec un simple processeur. Son équipe réactive adapte constamment l'algorithme pour neutraliser les ASICs ou les menaces complexes comme le Qubic, tandis que P2Pool répartit la puissance de hachage pour rendre les attaques à 51 % impossibles. Face à l'autoritarisme croissant et aux délistages des bourses, la communauté reste soudée en créant des solutions comme Haveno pour garantir la souveraineté des échanges. Monero réalise la promesse originelle de Bitcoin : une monnaie de résistance réellement décentralisée.
 
 ### Q : Pourquoi P2Pool ?
 R : Lancé en 2021 par SChernykh, P2Pool est né pour contrer la centralisation des pools géants qui menaçait Monero d'attaques à 51 %. Cette alternative décentralisée supprime l'intermédiaire central pour protéger le réseau de la censure, tout en assurant aux mineurs des paiements aussi réguliers qu'un pool classique.
 
 ### Q : Est-ce que DIYXMR est gratuit ?
-R : DIYXMR est un outil 100 % gratuit et open-source (GPLv3) qui n'impose aucune commission automatique. Toute votre puissance de calcul est dirigée vers vos propres portefeuilles par défaut, et le soutien au développeur via le "Dev Mining" est une option purement volontaire à activer manuellement. Vous conservez ainsi le contrôle total sur vos gains, sans aucun frais caché ni forcing.
+R : DIYXMR est un outil 100 % gratuit. Il est distribué en modèle "Source Available" (Code Transparent) : cela signifie que le code est entièrement visible pour être audité par sécurité, mais sa modification est interdite. Il n'impose aucune commission automatique (0 % fees). Toute votre puissance de calcul est dirigée vers vos propres portefeuilles par défaut. Le soutien au développeur via le "Dev Mining" reste une option volontaire à activer via le menu, sans aucun frais caché ni forcing.
 
 ### Q : Supporte-t-il les GPU ?
 R : Non, ce script est optimisé pour le CPU uniquement (RandomX est CPU-friendly). Pour GPU, regardez d'autres outils.
@@ -174,11 +191,11 @@ R : C'est un phénomène tout à fait normal. Les premières années de la block
 ### Q : Le Merge Mining Tari impacte-t-il le hashrate Monero ?
 R : Non, aucun impact. Le Merge Mining Tari utilise le même effort de calcul que Monero pour valider des blocs sur deux réseaux simultanément. Cela n'ajoute aucune charge CPU supplémentaire, vous permettant de cumuler des récompenses Tari en "bonus" sans jamais réduire votre hashrate XMR.
 
-### Q : Le Merge Mining Tari mine t'el dans P2Pool ?
+### Q : Le Merge Mining Tari mine-t-il dans P2Pool ?
 R : Non, le minage de Tari est individuel. Bien que P2Pool orchestre techniquement le Merge Mining, les récompenses Tari ne sont pas mutualisées entre les membres du pool. Vous ne recevez des jetons que si votre propre machine trouve un bloc valide sur le réseau Tari : c’est donc du minage solo effectué en parallèle de votre participation au pool Monero.
 
 ### Q : Pourquoi ne pas utiliser les portefeuilles du RIG pour recevoir les récompenses ?
-R : Utiliser une adresse externe protège vos fonds si le rig est infecté par des spywares (courants en spec mining) ou s'il subit une défaillance matérielle totale. En séparant vos clés de cette machine exposée, vous gardez l'accès à votre butin même si le matériel est détruit, défaillant ou piraté. C'est une sécurité vitale pour vos actifs.
+R : Utiliser une adresse externe protège vos fonds si le rig est infecté par des malwares (courants en spec mining) ou s'il subit une défaillance matérielle totale. En séparant vos clés de cette machine exposée, vous gardez l'accès à votre butin même si le matériel est détruit, défaillant ou piraté. C'est une sécurité vitale pour vos actifs.
 
 ### Q : Pourquoi utiliser des portefeuilles dédiés au minage ?
 R : Cloisonnez vos revenus pour protéger votre confidentialité. Accumuler des micro-paiements sur votre portefeuille personnel lie directement votre épargne à votre activité de minage. Un portefeuille dédié évite d'exposer l'intégralité de votre historique financier si vous partagez une clé de vue. Votre capital reste ainsi anonyme, déconnecté de l'activité de vos machines.
@@ -212,15 +229,17 @@ Address Monero: 48hPv8m5vvFKd6KcubnpXCdepPYiL28w7ZwMpGZxsK55hBjzB5PkfzyRfb3t3XBx
 
 ---
 
-## 📜 Licence
+## 📜 Licence & Droits d'Utilisation
 
-Ce projet est distribué sous **licence GPLv3**.
+Ce projet n'est **PAS Open Source**. Il est distribué sous une licence **PROPRIÉTAIRE / SOURCE AVAILABLE**.
 
-- **Attribution :** Toute redistribution ou version modifiée doit conserver de manière visible la marque "DIYBYPASS" et le lien diybypass.xyz
-- **Intégrité des dons :** La modification des adresses de donation originales est fortement déconseillée, afin de soutenir la maintenance du projet.
-- **Garantie :** Ce programme est fourni **SANS AUCUNE GARANTIE**.
+- **🛡️ Audit & Transparence :** Le code source est rendu public uniquement pour permettre l'audit de sécurité par la communauté et garantir l'absence de code malveillant.
+- **✅ Usage Gratuit :** Vous êtes libre de télécharger et d'utiliser ce script gratuitement sur vos machines pour miner.
+- **⛔ Interdictions Formelles :** Il est **STRICTEMENT INTERDIT** de modifier le code, de supprimer les crédits, de changer les adresses de donation ou de redistribuer ce projet.
 
-### Note importante
+**Garantie :** Ce programme est fourni **SANS AUCUNE GARANTIE**. En l'utilisant, vous acceptez ces conditions.
+
+### ⚠️ Note importante
 
 La rentabilité du minage dépend de votre matériel et du coût de l’électricité. Ce script est un **outil technique** et ne constitue **pas un conseil financier**.
 
