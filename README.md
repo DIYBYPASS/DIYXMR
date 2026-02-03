@@ -4,7 +4,7 @@
 ![Bash](https://img.shields.io/badge/Language-Bash-4EAA25?style=for-the-badge&logo=gnu-bash)
 ![Monero](https://img.shields.io/badge/Monero-XMR-FF6600?style=for-the-badge&logo=monero)
 
-**DIYXMR** est un script Bash “tout-en-un” d'automatisation complet pour déployer, sécuriser et gérer un stack de minage Monero (XMR) performant sur Linux. Il gère l'installation de A à Z, l'optimisation du CPU, la sécurité réseau (Tor/UFW) et permet le **Merge Mining** avec Tari.
+DIYXMR est un stack de minage Monero (XMR) clé en main pour Linux. Conçu pour la performance et la résilience, il automatise le déploiement, l'optimisation système (CPU/RAM), la sécurité réseau (Tor/UFW) et gère nativement le Merge Mining avec Tari sans configuration complexe.
 
 Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 
@@ -12,18 +12,18 @@ Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 
 ## ⚠️ Philosophie : Performance & Anti-Censure
 Ce projet est conçu pour la **performance brute** et la **résilience**, pas pour l'anonymat.
-- **Tor = Annuaire :** Le réseau Tor est utilisé uniquement pour la découverte de pairs (Peer Discovery) afin de contourner les blocages FAI.
-- **Clearweb = Transport :** Le flux de minage (les shares) transite en clair sur Internet pour garantir une **latence zéro**.
+- **Tor = Annuaire de secours :** Utilisé pour récupérer des listes de pairs (Peer Discovery) uniquement **en cas de blocage par le FAI**.
+- **Clearweb = Transport :** Le trafic de minage transite en direct sur Internet pour garantir une **latence minimale**.
 
-## ⚡ La Règle d'Or : Latence > Hashrate
-En minage, la vitesse de propagation (Latence) est plus critique que la puissance brute (Hashrate).
-C'est une course de vitesse : **Premier arrivé, premier servi.**
+## 🏁 La Règle d'Or : Latence > Hashrate
+Le minage est une course de vitesse, pas seulement de puissance.
+Il ne suffit pas de trouver la solution, il faut **être le premier** à la transmettre. Si votre réseau est ralenti par une **connexion internet lente ou une mauvaise configuration**, un autre mineur validera le bloc quelques millisecondes avant vous.
 
-Si vous trouvez un bloc en même temps qu'un autre mineur mais qu'il le propage avant vous à cause d'une latence réseau (VPN/Tor), votre bloc sera rejeté (Orphelin). **Vous aurez brûlé de l'électricité pour rien**.
+**Résultat :** Votre bloc est rejeté (Orphelin) et vous avez brûlé de l'électricité pour zéro récompense.
 
 ## 🛑 OpSec : Séparez vos usages
 Il est impossible d'avoir un stack à la fois **anonyme** (lent) et **performant** (rapide) pour le minage.
-Ce script transforme votre machine en serveur de minage dédié : **ne l'utilisez pas pour votre vie privée**.
+Ce script transforme votre machine en serveur de minage dédié : **ne l'utilisez pas comme portefeuille ni comme nœud privé**.
 
 ---
 
@@ -55,7 +55,7 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 
 ## 📊 Modes de Minage
 
-### ⚡ P2Pool NANO
+### 🐝 P2Pool NANO
 Sidechain très légère, conçue pour petits CPU.
 - ✅ Pool décentralisé
 - ✅ Pas de frais
@@ -63,7 +63,7 @@ Sidechain très légère, conçue pour petits CPU.
 - ❌ Plus de variance (récompenses plus irrégulières)
 - 💡 **Idéal pour :** Petit CPU (Intel Atom / i3, AMD Ryzen 3 / 5, Raspberry Pi)
 
-### 🎨 P2Pool MINI
+### 🐝 P2Pool MINI
 Équilibre entre fréquence de paiements et stabilité des récompenses.
 - ✅ Pool décentralisé
 - ✅ Pas de frais
@@ -71,7 +71,7 @@ Sidechain très légère, conçue pour petits CPU.
 - ❌ Moins de paiements fréquents que NANO
 - 💡 **Idéal pour :** CPU desktop (AMD Ryzen 7 / 9, Intel i5 / i7)
 
-### 🔥 P2Pool FULL
+### 🐝 P2Pool FULL
 Chaîne complète P2Pool pour gros CPU multithreads.
 - ✅ Pool décentralisé
 - ✅ Pas de frais
