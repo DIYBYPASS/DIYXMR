@@ -1919,7 +1919,7 @@ grpc_server_allow_methods = [
 ]
 
 [base_node.storage]
-pruning_horizon = 2880
+pruning_horizon = 0
 
 [base_node.p2p.transport]
 type = "tcp"
