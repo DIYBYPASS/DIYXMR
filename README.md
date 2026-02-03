@@ -1,6 +1,7 @@
 # 🚀 DIYXMR — Stack de Minage Monero par CPU
 
 ![License](https://img.shields.io/badge/LICENSE-SOURCE%20AVAILABLE-crimson?style=for-the-badge&logo=adguard&logoColor=white)
+[![Archive](https://img.shields.io/badge/ARCHIVED-SWH-ef5c50?style=for-the-badge&logo=keepassxc&logoColor=white)](https://archive.softwareheritage.org/swh:1:rev:2d8d5ad926f4a3036a9c046bcfbc973fa16d9842;origin=https://github.com/DIYBYPASS/DIYXMR)
 ![Bash](https://img.shields.io/badge/Language-Bash-4EAA25?style=for-the-badge&logo=gnu-bash)
 ![Monero](https://img.shields.io/badge/Monero-XMR-FF6600?style=for-the-badge&logo=monero)
 
