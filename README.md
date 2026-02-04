@@ -59,12 +59,12 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 
 ### 🖥️ Interface & Gestion Utilisateur
 - **Dashboard TUI (Text User Interface)** : Tableau de bord interactif affichant le hashrate, l'état de synchronisation, la santé système et les logs en temps réel.
+- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si ton adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter ton hashrate gratuitement.
 - **Assistant de Configuration (Wizard)** : Formulaire interactif guidé au premier lancement pour paramétrer les adresses de portefeuille et les accès réseau.
 - **Gestion des Logs** : Rétention limitée à 24h avec purge automatique (`vacuum`) pour préserver l'espace de stockage.
 - **Mise à jour Intégrée** : Système de mise à jour automatique pour le script et les binaires tiers directement depuis l'interface.
 
 ### 🛠️ Maintenance & Diagnostic
-- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si ton adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter ton hashrate gratuitement.
 - **Mode "Spec Mining"** : Option permettant d'arrêter et de désactiver proprement tous les services pour libérer les ressources, tout en restant prêt à repartir.
 - **Vérification des Flux** : Diagnostic interne confirmant la bonne liaison de données entre les différents composants (ex: XMRig ➜ P2Pool ➜ Monerod).
 - **Nettoyage en Profondeur** : Fonction de désinstallation complète capable de supprimer binaires, services, blockchains et configurations réseau.
