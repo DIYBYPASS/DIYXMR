@@ -56,7 +56,6 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 - **Redémarrage Automatique** : Configuration des services pour s'auto-relancer systématiquement en cas d'échec ou après une coupure.
 - **Priorisation Kernel** : Attribution d'une priorité CPU maximale (`Nice=-20`) pour le processus du mineur XMRig.
 - **Protections Système** : Ajustement de l'`OOMScoreAdjust` à -1000 et augmentation des limites de fichiers ouverts (`NoFile`) à 65536 pour garantir la stabilité des nœuds.
-- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si ton adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter ton hashrate gratuitement.
 
 ### 🖥️ Interface & Gestion Utilisateur
 - **Dashboard TUI (Text User Interface)** : Tableau de bord interactif affichant le hashrate, l'état de synchronisation, la santé système et les logs en temps réel.
@@ -65,6 +64,7 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 - **Mise à jour Intégrée** : Système de mise à jour automatique pour le script et les binaires tiers directement depuis l'interface.
 
 ### 🛠️ Maintenance & Diagnostic
+- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si ton adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter ton hashrate gratuitement.
 - **Mode "Spec Mining"** : Option permettant d'arrêter et de désactiver proprement tous les services pour libérer les ressources, tout en restant prêt à repartir.
 - **Vérification des Flux** : Diagnostic interne confirmant la bonne liaison de données entre les différents composants (ex: XMRig ➜ P2Pool ➜ Monerod).
 - **Nettoyage en Profondeur** : Fonction de désinstallation complète capable de supprimer binaires, services, blockchains et configurations réseau.
