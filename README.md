@@ -45,7 +45,7 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 
 ### 🛡️ Sécurité & Confidentialité (Hardening)
 - **Pare-feu Adaptatif (UFW)** : Configuration automatique restreignant l'accès aux seuls ports nécessaires selon le mode de minage et les options activées.
-- **Gestion Intelligente du SSH** : Le script détecte automatiquement ton port SSH actuel pour éviter de vous bloquer l'accès lors de la configuration de l'UFW, et permet de le modifier ou de le bannir totalement pour plus de sécurité.
+- **Gestion Intelligente du SSH** : Le script détecte automatiquement votre port SSH actuel pour éviter de vous bloquer l'accès lors de la configuration de l'UFW, et permet de le modifier ou de le bannir totalement pour plus de sécurité.
 - **Anti Brute-force (Fail2Ban)** : Sécurisation automatisée des accès SSH contre les tentatives d'intrusion par force brute.
 - **Anti-Censure via Tor** : Utilisation de Tor comme annuaire de secours pour la découverte de pairs en cas de blocage par le FAI.
 - **Vérification Cryptographique** : Validation systématique de l'intégrité des binaires par sommes de contrôle **SHA256** et vérification des signatures **GPG**.
@@ -59,7 +59,7 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 
 ### 🖥️ Interface & Gestion Utilisateur
 - **Dashboard TUI (Text User Interface)** : Tableau de bord interactif affichant le hashrate, l'état de synchronisation, la santé système et les logs en temps réel.
-- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si ton adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter ton hashrate gratuitement.
+- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si votre adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter votre hashrate gratuitement.
 - **Assistant de Configuration (Wizard)** : Formulaire interactif guidé au premier lancement pour paramétrer les adresses de portefeuille et les accès réseau.
 - **Gestion des Logs** : Rétention limitée à 24h avec purge automatique (`vacuum`) pour préserver l'espace de stockage.
 - **Mise à jour Intégrée** : Système de mise à jour automatique pour le script et les binaires tiers directement depuis l'interface.
@@ -181,7 +181,7 @@ sudo ./diyxmr.sh
 Pour ceux qui font du Spec Mining (j’en fais partie), dans le TUI, appuyez sur la touche **E**, puis choisissez l’option **3**.
 Cela **arrête et désactive** tous les services du stack sans rien supprimer. Vous pourrez alors miner d’autres projets à côté avec 100 % de vos ressources.
 
-Quand le Spec Mining est plus calme, relancez simplement le script : il va checker votre système et **tout remettre en route automatiquement** (services, firewall, etc.).
+Quand le Spec Mining est plus calme, relancez simplement le script : il va analyser votre système et **tout remettre en route automatiquement** (services, firewall, etc.).
 
 Dans une France, une Europe et un monde où les gouvernements deviennent **de plus en plus autoritaires** et où les libertés reculent, **le XMR a un bel avenir devant lui**.
 
@@ -261,8 +261,6 @@ Ce projet n'est **PAS Open Source**. Il est distribué sous une licence **PROPRI
 ### ⚠️ Note importante
 
 La rentabilité du minage dépend de votre matériel et du coût de l’électricité. Ce script est un **outil technique** et ne constitue **pas un conseil financier**.
-
-Archivé par Software Heritage le 03/02/2026 : swh:1:cnt:KZ34...
 
 ---
 
