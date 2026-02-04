@@ -45,7 +45,7 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 
 ### 🛡️ Sécurité & Confidentialité (Hardening)
 - **Pare-feu Adaptatif (UFW)** : Configuration automatique restreignant l'accès aux seuls ports nécessaires selon le mode de minage et les options activées.
-- **Gestion Intelligente du SSH** : Le script détecte automatiquement ton port SSH actuel pour éviter de te bloquer l'accès lors de la configuration de l'UFW, et permet de le modifier ou de le bannir totalement pour plus de sécurité.
+- **Gestion Intelligente du SSH** : Le script détecte automatiquement ton port SSH actuel pour éviter de vous bloquer l'accès lors de la configuration de l'UFW, et permet de le modifier ou de le bannir totalement pour plus de sécurité.
 - **Anti Brute-force (Fail2Ban)** : Sécurisation automatisée des accès SSH contre les tentatives d'intrusion par force brute.
 - **Anti-Censure via Tor** : Utilisation de Tor comme annuaire de secours pour la découverte de pairs en cas de blocage par le FAI.
 - **Vérification Cryptographique** : Validation systématique de l'intégrité des binaires par sommes de contrôle **SHA256** et vérification des signatures **GPG**.
