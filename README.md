@@ -30,27 +30,45 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 
 ## ✨ Fonctionnalités Principales
 
-### 🏗️ Architecture Complète
-* **Monero Node (`monerod`)** : Nœud complet en mode **Pruned** (~70 Go). Fonctionne sur le **Clearweb** pour une latence minimale, avec **Tor** servant uniquement d'annuaire de secours pour récupérer des IPs de pairs en cas de blocage FAI.
-* **P2Pool** : Sidechain décentralisée (0% frais, paiements directs sur votre wallet dès qu’un bloc est trouvé si vous avez des shares dans la fenêtre PPLNS ; minimum technique ~0.00027 XMR par payout).
-* **XMRig** : Mineur CPU optimisé automatiquement selon votre matériel.
-* **Tari (Minotari)** : Nœud complet (Pruned) pour le **Merge Mining**. Gagnez du Tari en "bonus" sans aucune perte de hashrate Monero.
+### 🏗️ Architecture & Composants de Minage
+- **Monero Node (`monerod`)** : Déploiement d'un nœud complet en mode **Pruned** (~70 Go) pour optimiser l'espace disque tout en renforçant le réseau.
+- **P2Pool** : Intégration de la sidechain décentralisée avec choix du réseau (**NANO**, **MINI** ou **FULL**) pour un minage sans frais et des paiements directs.
+- **XMRig** : Installation et configuration automatisée du mineur CPU haute performance.
+- **Merge Mining Tari** : Gestion native de **Minotari** permettant de miner du Tari en parallèle du Monero sans aucune perte de hashrate.
+- **Support MoneroOcean** : Option de minage via pool centralisé avec algorithme de *switching* automatique.
+
+### ⚡ Optimisations de Performance (Hardware & Réseau)
+- **HugePages & 1GB Pages** : Activation automatique et persistante au redémarrage pour maximiser l'efficacité de l'algorithme RandomX.
+- **Désactivation du THP** : Gestion des *Transparent Huge Pages* via un service Systemd dédié pour éliminer les latences CPU.
+- **Auto-tuning CPU** : Détection du cache L3 et calcul intelligent du nombre de threads optimal, incluant le support des processeurs AMD 3D V-Cache.
+- **TCP BBR & FQ** : Activation de l'algorithme de congestion BBR et de la file d'attente *Fair Queuing* pour minimiser la latence de transmission des *shares*.
 
 ### 🛡️ Sécurité & Confidentialité (Hardening)
-* **Anti-Censure** : Monero et Tari utilisent **Tor** pour la découverte de pairs. Le minage P2Pool reste sur le **Clearweb** pour garantir une **latence minimale** (essentiel pour les gains).
-* **Pare-feu (UFW)** : Configuration automatique stricte et adaptative selon le mode de minage (SOLO / P2Pool NANO-MINI-FULL / MoneroOcean) et les options activées (SSH, Tari) ; seuls les ports requis sont autorisés, le reste est bloqué.
-* **Anti Brute-force** : Installation et configuration de **Fail2Ban** pour SSH.
-* **Réseau** : Optimisation de la pile TCP (**BBR**) pour la vitesse et activation des **extensions de confidentialité IPv6** (Privacy Extensions).
+- **Pare-feu Adaptatif (UFW)** : Configuration automatique restreignant l'accès aux seuls ports nécessaires selon le mode de minage et les options activées.
+- **Anti Brute-force (Fail2Ban)** : Sécurisation automatisée des accès SSH contre les tentatives d'intrusion par force brute.
+- **Anti-Censure via Tor** : Utilisation de Tor comme annuaire de secours pour la découverte de pairs en cas de blocage par le FAI.
+- **Vérification Cryptographique** : Validation systématique de l'intégrité des binaires par sommes de contrôle **SHA256** et vérification des signatures **GPG**.
+- **IPv6 Privacy Extensions** : Activation de la confidentialité IPv6 pour masquer l'identifiant matériel lors des communications réseau.
+- **Gestion Intelligente du SSH** : Le script détecte automatiquement ton port SSH actuel pour éviter de te bloquer l'accès lors de la configuration de l'UFW, et permet de le modifier ou de le bannir totalement pour plus de sécurité.
 
-### ⚡ Performance
-* **HugePages & 1GB Pages** : Activation automatique et persistance au redémarrage.
-* **Désactivation THP** : Gestion du Transparent Huge Pages pour éviter les latences.
-* **Auto-tuning** : Détection du cache L3 pour calculer le nombre optimal de threads (compatible AMD 3D V-Cache).
+### ⚙️ Automatisation & Système (Systemd)
+- **Création Automatique des Services** : Génération automatique des unités Systemd pour assurer le lancement au démarrage de `monerod`, `p2pool`, `xmrig` et `minotari_node`.
+- **Redémarrage Automatique** : Configuration des services pour s'auto-relancer systématiquement en cas d'échec ou après une coupure.
+- **Priorisation Kernel** : Attribution d'une priorité CPU maximale (`Nice=-20`) pour le processus du mineur XMRig.
+- **Protections Système** : Ajustement de l'`OOMScoreAdjust` à -1000 et augmentation des limites de fichiers ouverts (`NoFile`) à 65536 pour garantir la stabilité des nœuds.
+- **Intégration Raffle XMRvsBEAST** : Le dashboard vérifie automatiquement via API si ton adresse est inscrite au programme de bonus XMRvsBEAST (raffle) pour augmenter ton hashrate gratuitement.
 
-### 🖥️ Expérience Utilisateur
-* **Installation Interactive** : Assistant de configuration au premier lancement.
-* **Dashboard TUI** : Vue en temps réel du hashrate, de la synchro, de la santé système et des logs, avec un menu interactif (raccourcis clavier) pour gérer rapidement les actions courantes (paramètres, mise à jour, affichage des logs, arrêt/nettoyage).
-* **Auto-update** : Système de mise à jour intégré pour le script et les binaires (XMRig, Monero, P2Pool, Tari), avec vérification d’intégrité (SHA256) et validation des signatures (GPG) lorsqu’elles sont disponibles, afin de réduire le risque d’installer des archives altérées.
+### 🖥️ Interface & Gestion Utilisateur
+- **Dashboard TUI (Text User Interface)** : Tableau de bord interactif affichant le hashrate, l'état de synchronisation, la santé système et les logs en temps réel.
+- **Assistant de Configuration (Wizard)** : Formulaire interactif guidé au premier lancement pour paramétrer les adresses de portefeuille et les accès réseau.
+- **Gestion des Logs** : Rétention limitée à 24h avec purge automatique (`vacuum`) pour préserver l'espace de stockage.
+- **Mise à jour Intégrée** : Système de mise à jour automatique pour le script et les binaires tiers directement depuis l'interface.
+
+### 🛠️ Maintenance & Diagnostic
+- **Mode "Spec Mining"** : Option permettant d'arrêter et de désactiver proprement tous les services pour libérer les ressources, tout en restant prêt à repartir.
+- **Vérification des Flux** : Diagnostic interne confirmant la bonne liaison de données entre les différents composants (ex: XMRig ➜ P2Pool ➜ Monerod).
+- **Nettoyage en Profondeur** : Fonction de désinstallation complète capable de supprimer binaires, services, blockchains et configurations réseau.
+- **Synchronisation NTP** : Vérification et forçage de la synchronisation temporelle via `systemd-timesyncd`, cruciale pour la validation des blocs.
 
 ---
 
@@ -172,7 +190,7 @@ Dans une France, une Europe et un monde où les gouvernements deviennent **de pl
 ## ❓ FAQ (Foire Aux Questions)
 
 ### Q : Pourquoi le Monero ?
-R : Monero est le véritable argent liquide numérique : privé, fongible et conçu pour rester accessible à tous, car n'importe qui peut participer au réseau avec un simple processeur. Son équipe réactive adapte constamment l'algorithme pour neutraliser les ASICs ou les menaces complexes comme le Qubic, tandis que P2Pool répartit la puissance de hachage pour rendre les attaques à 51 % impossibles. Face à l'autoritarisme croissant et aux délistages des bourses, la communauté reste soudée en créant des solutions comme Haveno pour garantir la souveraineté des échanges. Monero réalise la promesse originelle de Bitcoin : une monnaie de résistance réellement décentralisée.
+R : Véritable cash numérique, Monero est privé, fongible et accessible via un simple processeur. En adaptant constamment son algorithme pour neutraliser les ASICs et contrer les projets comme Qubic qui tentent de centraliser le hashrate, Monero reste techniquement plus fidèle à la philosophie originelle de Satoshi Nakamoto (« un CPU, un vote ») que le Bitcoin actuel.  Épaulé par P2Pool pour empêcher les attaques à 51 % et par Haveno pour garantir la souveraineté des échanges, il s'impose comme l'unique monnaie de résistance réellement décentralisée.
 
 ### Q : Pourquoi P2Pool ?
 R : Lancé en 2021 par SChernykh, P2Pool est né pour contrer la centralisation des pools géants qui menaçait Monero d'attaques à 51 %. Cette alternative décentralisée supprime l'intermédiaire central pour protéger le réseau de la censure, tout en assurant aux mineurs des paiements aussi réguliers qu'un pool classique.
@@ -243,6 +261,8 @@ Ce projet n'est **PAS Open Source**. Il est distribué sous une licence **PROPRI
 ### ⚠️ Note importante
 
 La rentabilité du minage dépend de votre matériel et du coût de l’électricité. Ce script est un **outil technique** et ne constitue **pas un conseil financier**.
+
+Archivé par Software Heritage le 03/02/2026 : swh:1:cnt:KZ34...
 
 ---
 
