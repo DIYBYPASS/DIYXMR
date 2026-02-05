@@ -793,7 +793,7 @@ wait_service_port() {
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 wait_rpc_ready() {
 
-  local retries=60 delay=2 spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+  local retries=60 delay=2.15 spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
   local i=0 tries=0
 
   while ((tries < retries)); do
@@ -1584,7 +1584,7 @@ ExecStart=$MONERO_DIR/monerod \
   --enable-dns-blocklist \
   --prune-blockchain \
   --sync-pruned-blocks \
-  --db-sync-mode=fast:async:25000 \
+  --db-sync-mode=safe \
   --log-level=0
 KillSignal=SIGINT
 TimeoutStopSec=300
@@ -1665,7 +1665,7 @@ EOF
   fi
 
   wait_monero_ready() {
-    local delay=1
+    local delay=1.15
     local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
     local idx=0
 
@@ -2061,7 +2061,7 @@ EOF
       fi
 
       wait_tari_ready() {
-        local delay=1
+        local delay=1.15
         local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
         local idx=0
         local grpc_wait=0
@@ -3788,7 +3788,7 @@ while :; do
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
     # Tari ──────────────────────────────────────────────────────────────────────────────────────────────────── #
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-    printf "\n${FG_CYAN}${BOLD}💎 Nœud Tari${RESET}\n"
+    printf "\n${FG_CYAN}${BOLD}💎  Nœud Tari${RESET}\n"
     printf "${FG_WHITE}${BOLD}"
     printf '─%.0s' {1..84}
     printf "${RESET}\n"
@@ -3883,7 +3883,7 @@ while :; do
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
     # P2Pool ────────────────────────────────────────────────────────────────────────────────────────────────── #
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-    printf "\n${FG_CYAN}${BOLD}⛓️  Pool P2Pool${RESET}\n"
+    printf "\n${FG_CYAN}${BOLD}⛓️   Pool P2Pool${RESET}\n"
     printf "${FG_WHITE}${BOLD}"
     printf '─%.0s' {1..84}
     printf "${RESET}\n"
@@ -3943,7 +3943,7 @@ while :; do
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
     # XMRig ─────────────────────────────────────────────────────────────────────────────────────────────────── #
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-    printf "\n${FG_CYAN}${BOLD}⛏️  Mineur XMRig${RESET}\n"
+    printf "\n${FG_CYAN}${BOLD}⛏️   Mineur XMRig${RESET}\n"
     printf "${FG_WHITE}${BOLD}"
     printf '─%.0s' {1..84}
     printf "${RESET}\n"
@@ -4118,7 +4118,7 @@ while :; do
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
     # Raccourcis clavier ────────────────────────────────────────────────────────────────────────────────────── #
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-    printf "\n${FG_CYAN}${BOLD}⌨️  Raccourcis clavier${RESET}\n"
+    printf "\n${FG_CYAN}${BOLD}⌨️   Raccourcis clavier${RESET}\n"
     printf "${FG_WHITE}${BOLD}"
     printf '─%.0s' {1..84}
     printf "${RESET}\n"
