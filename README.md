@@ -9,6 +9,8 @@ DIYXMR est un stack de minage Monero (XMR) clé en main pour Linux. Conçu pour 
 
 Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 
+![Tableau de bord DIYXMR](assets/dashboard.png)
+
 ---
 
 ## ⚠️ Philosophie : Performance & Anti-Censure
