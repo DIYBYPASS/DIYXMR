@@ -61,6 +61,33 @@ trap 'printf "\e[31m✖  %s:%d : %s (code %s)\e[0m\n" \
 }
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Vérification Connectivité Internet ────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+if ! ping -c 1 -W 2 1.1.1.1 &>/dev/null && ! ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
+  printf "\n"
+  printf "  \e[33m⚠  ATTENTION : Aucune connexion Internet détectée.\e[0m\n"
+  printf "     Si vous utilisez un nœud distant (LAN) ou si tout est déjà installé, c'est OK.\n"
+  printf "     Sinon, le téléchargement des mises à jour et des mineurs échouera.\n\n"
+
+  while true; do
+    read -rp "  ➜ Voulez-vous continuer quand même ? (o/N) : " choice
+    case "$choice" in
+      [oO]|[oO][uU][iI])
+        printf "  \e[33m➡  Continuation (Mode hors-ligne assumé)...\e[0m\n\n"
+        break
+        ;;
+      [nN]|[nN][oO][nN]|"")
+        printf "  \e[31m✖  Arrêt du script.\e[0m\n"
+        exit 1
+        ;;
+      *)
+        printf "     Répondez par Oui (o) ou Non (n).\n"
+        ;;
+    esac
+  done
+fi
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Vérification espace disque ────────────────────────────────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 FREE_SPACE=$(df -BG /home | awk 'NR==2 {print $4}' | tr -d 'G')
