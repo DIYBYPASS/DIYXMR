@@ -279,3 +279,11 @@ La rentabilité du minage dépend de votre matériel et du coût de l’électri
 ---
 
 # Happy Mining! 🚀
+
+---
+
+# Captures d'écran
+
+![Tableau de bord DIYXMR](assets/setup-1.png)
+![Tableau de bord DIYXMR](assets/setup-2.png)
+![Tableau de bord DIYXMR](assets/setup-3.png)
