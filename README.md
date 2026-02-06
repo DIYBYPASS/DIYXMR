@@ -189,7 +189,7 @@ Dans une France, une Europe et un monde où les gouvernements deviennent **de pl
 
 ---
 
-## ❓ FAQ (Foire Aux Questions)
+## ❓ La foire aux questions
 
 ### Q : Pourquoi le Monero ?
 R : Véritable cash numérique, Monero est privé, fongible et accessible via un simple processeur. En adaptant constamment son algorithme pour neutraliser les ASICs et contrer les projets comme Qubic qui tentent de centraliser le hashrate, Monero reste techniquement plus fidèle à la philosophie originelle de Satoshi Nakamoto (« un CPU, un vote ») que le Bitcoin actuel.  Épaulé par P2Pool pour empêcher les attaques à 51 % et par Haveno pour garantir la souveraineté des échanges, il s'impose comme l'unique monnaie de résistance réellement décentralisée.
