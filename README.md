@@ -197,8 +197,17 @@ R : Véritable cash numérique, Monero est privé, fongible et accessible via un
 ### Q : Pourquoi P2Pool ?
 R : Lancé en 2021 par SChernykh, P2Pool est né pour contrer la centralisation des pools géants qui menaçait Monero d'attaques à 51 %. Cette alternative décentralisée supprime l'intermédiaire central pour protéger le réseau de la censure, tout en assurant aux mineurs des paiements aussi réguliers qu'un pool classique.
 
+### Q : Pourquoi Ubuntu Server et pas une version Bureau (Desktop) ?
+R : Les versions Bureau (Windows ou Ubuntu Desktop) gaspillent des ressources critiques (1 à 4 Go de RAM) pour une interface graphique inutile. En choisissant Ubuntu Server, vous éliminez ces surcouches : cela réduit drastiquement la surface d'attaque (moins de vecteurs de vulnérabilité) tout en dédiant 100 % de la puissance matérielle à l'algorithme RandomX pour un hashrate maximal et une stabilité absolue.
+
+### Q : Pourquoi le script exige-t-il les droits ROOT (sudo) ?
+R : Ce script n'est pas une simple application, mais un orchestrateur système complet. Il exige les droits administrateur pour effectuer des interventions profondes indispensables à la performance et à la sécurité : optimisation du noyau (HugePages, MSR) pour maximiser le hashrate, durcissement du réseau (UFW, TCP BBR), gestion des dépendances et création de services systemd autonomes. Sans accès root, il est impossible de transformer une machine standard en un nœud de minage résilient et optimisé.
+
 ### Q : Est-ce que DIYXMR est gratuit ?
 R : DIYXMR est un outil 100 % gratuit. Il est distribué en modèle "Source Available" (Code Transparent) : cela signifie que le code est entièrement visible pour être audité par sécurité, mais sa modification est interdite. Il n'impose aucune commission automatique (0 % fees). Toute votre puissance de calcul est dirigée vers vos propres portefeuilles par défaut. Le soutien au développeur via le "Dev Mining" reste une option volontaire à activer via le menu, sans aucun frais caché ni forcing.
+
+### Q : Puis-je fermer le script sans arrêter le minage ?
+R : OUI. Le script est uniquement un tableau de bord de contrôle. Le cœur du système (Monero, P2Pool, XMRig) tourne en arrière-plan sous forme de services systemd indépendants et résilients. Vous pouvez fermer le script, quitter votre session SSH ou éteindre votre PC de contrôle : le serveur continuera de miner 24/7. Il suffit de relancer le script pour retrouver l'affichage.
 
 ### Q : Supporte-t-il les GPU ?
 R : Non, ce script est optimisé pour le CPU uniquement (RandomX est CPU-friendly). Pour GPU, regardez d'autres outils.
