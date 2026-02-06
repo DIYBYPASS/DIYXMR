@@ -287,3 +287,13 @@ La rentabilité du minage dépend de votre matériel et du coût de l’électri
 ![Tableau de bord DIYXMR](assets/setup-1.png)
 ![Tableau de bord DIYXMR](assets/setup-2.png)
 ![Tableau de bord DIYXMR](assets/setup-3.png)
+
+## Configuration :
+![Tableau de bord DIYXMR](assets/wizard.png)
+
+![Tableau de bord DIYXMR](assets/menu-x.png)
+![Tableau de bord DIYXMR](assets/menu-u.png)
+![Tableau de bord DIYXMR](assets/menu-s.png)
+![Tableau de bord DIYXMR](assets/menu-l.png)
+![Tableau de bord DIYXMR](assets/menu-e.png)
+![Tableau de bord DIYXMR](assets/menu-d.png)
