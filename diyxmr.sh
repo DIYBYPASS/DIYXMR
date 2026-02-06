@@ -18,7 +18,7 @@
 #    et garantir la transparence aux utilisateurs (absence de code malveillant).
 #
 # 2. DROIT D'USAGE PERSONNEL
-#    Vous êtes autorisé à télécharger, installer et exécuter ce script 
+#    Vous êtes autorisé à télécharger, installer et exécuter ce script
 #    gratuitement sur vos machines pour miner.
 #
 # 3. INTERDICTIONS STRICTES
@@ -38,6 +38,12 @@
 # shellcheck disable=SC2155,SC2086,SC2034,SC2059,SC1090,SC2002,SC2015
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Configuration de l'environnement ──────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Durcissement bash : options de sécurité et débogage ───────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 set -Eeuo pipefail
@@ -51,6 +57,17 @@ trap 'printf "\e[31m✖  %s:%d : %s (code %s)\e[0m\n" \
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 [[ $EUID -eq 0 ]] || {
   printf "\e[31m✖  Exécute en root (sudo ./script.sh)\e[0m\n"
+  exit 1
+}
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Vérification espace disque ────────────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+FREE_SPACE=$(df -BG /home | awk 'NR==2 {print $4}' | tr -d 'G')
+
+[[ "$FREE_SPACE" -ge 250 ]] || {
+  printf "\e[31m✖  Espace disque insuffisant sur /home : %sGo disponibles.\e[0m\n" "$FREE_SPACE"
+  printf "   \e[31mIl faut au moins 250Go libres pour héberger les blockchains.\e[0m\n"
   exit 1
 }
 
@@ -1009,20 +1026,6 @@ printf "${FG_WHITE}${BOLD}"
 printf '─%.0s' {1..64}
 printf "${RESET}\n"
 
-if ! locale -a | grep -qi 'en_US.utf8'; then
-  (
-    apt-get install -y -qq locales &>/dev/null
-    locale-gen en_US.UTF-8 &>/dev/null
-    update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 &>/dev/null
-  ) &
-  spinner $! "${FG_WHITE}Installation de la locale en_US.UTF-8${RESET}"
-  printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Locale en_US.UTF-8 installée et activée\n"
-else
-  printf "  ${FG_GREEN}✔${RESET} Locale en_US.UTF-8 déjà présente\n"
-fi
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-
 if id -u worker &>/dev/null; then
   printf "  ${FG_GREEN}✔${RESET} utilisateur « worker » déjà présent\n"
 else
@@ -1056,7 +1059,7 @@ else
   fi
 fi
 
-deps=(curl jq ufw gnupg tar unzip netcat-openbsd iproute2 ca-certificates fail2ban tor wget qrencode)
+deps=(curl jq ufw gnupg tar unzip bzip2 netcat-openbsd iproute2 ca-certificates fail2ban tor wget qrencode)
 
 (
   DEBIAN_FRONTEND=noninteractive \
