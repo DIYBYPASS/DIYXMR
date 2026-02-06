@@ -200,7 +200,7 @@ R : Lancé en 2021 par SChernykh, P2Pool est né pour contrer la centralisation 
 ### Q : Pourquoi Ubuntu Server et pas une version Bureau (Desktop) ?
 R : Les versions Bureau (Windows ou Ubuntu Desktop) gaspillent des ressources critiques (1 à 4 Go de RAM) pour une interface graphique inutile. En choisissant Ubuntu Server, vous éliminez ces surcouches : cela réduit drastiquement la surface d'attaque (moins de vecteurs de vulnérabilité) tout en dédiant 100 % de la puissance matérielle à l'algorithme RandomX pour un hashrate maximal et une stabilité absolue.
 
-### Q : Pourquoi le script exige-t-il les droits ROOT (sudo) ?
+### Q : Pourquoi le script exige-t-il les droits ROOT (`sudo`) ?
 R : Ce script n'est pas une simple application, mais un orchestrateur système complet. Il exige les droits administrateur pour effectuer des interventions profondes indispensables à la performance et à la sécurité : optimisation du noyau (HugePages, MSR) pour maximiser le hashrate, durcissement du réseau (UFW, TCP BBR), gestion des dépendances et création de services systemd autonomes. Sans accès root, il est impossible de transformer une machine standard en un nœud de minage résilient et optimisé.
 
 ### Q : Est-ce que DIYXMR est gratuit ?
@@ -217,6 +217,9 @@ R : 4-24 heures selon votre connexion et hardware. Utilisez un SSD pour accélé
 
 ### Q : Pourquoi la synchronisation ralentit-elle fortement vers la fin ?
 R : C'est un phénomène tout à fait normal. Les premières années de la blockchain (2014-2017) contiennent des blocs légers qui se téléchargent très vite. À mesure que vous approchez du présent, les blocs deviennent plus lourds et cryptographiquement complexes (plus de transactions, confidentialité renforcée). Votre matériel doit alors vérifier chaque signature mathématique et effectuer des milliers d'écritures disque par seconde, ce qui ralentit naturellement la progression sur les derniers pourcents. Patience, c'est le signe que vous arrivez au sommet de la chaîne.
+
+### Q : Pourquoi mon nœud Monero est-il corrompu ?
+R : Une corruption de la base `data.mdb` est rarement logicielle, le script forçant le mode `--db-sync-mode=safe` pour parer aux coupures de courant. Le problème est matériel : la **synchronisation initiale** agit comme un « stress-test » extrême pour votre RAM et votre CPU. Si un profil d'overclocking (**XMP/EXPO**) est actif, des micro-erreurs de calcul surviennent et corrompent définitivement la chaîne en cours d'écriture. Pour éviter de devoir tout recommencer, **désactivez impérativement tout overclocking durant cette phase critique** ; une fois le nœud synchronisé et la base consolidée, le risque de corruption disque diminue, bien que la stabilité reste requise pour le minage.
 
 ### Q : Le Merge Mining Tari impacte-t-il le hashrate Monero ?
 R : Non, aucun impact. Le Merge Mining Tari utilise le même effort de calcul que Monero pour valider des blocs sur deux réseaux simultanément. Cela n'ajoute aucune charge CPU supplémentaire, vous permettant de cumuler des récompenses Tari en "bonus" sans jamais réduire votre hashrate XMR.
