@@ -283,17 +283,30 @@ La rentabilité du minage dépend de votre matériel et du coût de l’électri
 ---
 
 # Captures d'écran
-
-![Tableau de bord DIYXMR](assets/setup-1.png)
-![Tableau de bord DIYXMR](assets/setup-2.png)
-![Tableau de bord DIYXMR](assets/setup-3.png)
+Voici un aperçu des différents menus du script.
 
 ## Configuration :
 ![Tableau de bord DIYXMR](assets/wizard.png)
 
-![Tableau de bord DIYXMR](assets/menu-x.png)
-![Tableau de bord DIYXMR](assets/menu-u.png)
-![Tableau de bord DIYXMR](assets/menu-s.png)
-![Tableau de bord DIYXMR](assets/menu-l.png)
-![Tableau de bord DIYXMR](assets/menu-e.png)
-![Tableau de bord DIYXMR](assets/menu-d.png)
+## Lancement :
+![Lancement DIYXMR](assets/setup-1.png)
+![Lancement DIYXMR](assets/setup-2.png)
+![Lancement DIYXMR](assets/setup-3.png)
+
+## Menu X (détruire le stack) :
+![Menu_X DIYXMR](assets/menu-x.png)
+
+## Menu U (mettre à jour) :
+![Menu_U DIYXMR](assets/menu-u.png)
+
+## Menu S (paremètres) :
+![Menu_S DIYXMR](assets/menu-s.png)
+
+## Menu L (logs) :
+![Menu_L DIYXMR](assets/menu-l.png)
+
+## Menu E (quitter / arrêter) :
+![Menu_E DIYXMR](assets/menu-e.png)
+
+## Menu D (soutenir le projet) :
+![Menu_D DIYXMR](assets/menu-d.png)
