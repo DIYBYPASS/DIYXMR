@@ -63,6 +63,29 @@ OK="✔"
 NO="✖"
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Constantes ────────────────────────────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+WORKER_HOME=/home/worker
+P2POOL_PORT=37888
+STRATUM_PORT=3333
+CONFIG_FILE="/etc/diyxmr.conf"
+REFRESH_INTERVAL=120
+LAST_VERSION_CHECK=0
+VERSION_CHECK_INTERVAL=3600
+
+INSTALLED_P2POOL=""
+P2POOL_VERSION=""
+
+INSTALLED_TARI=""
+TARI_VERSION=""
+TARI_GRPC_PORT=18142
+TARI_P2P_PORT=18189
+GRUB_FILE="/etc/default/grub"
+
+DEV_XMR_WALLET="48hPv8m5vvFKd6KcubnpXCdepPYiL28w7ZwMpGZxsK55hBjzB5PkfzyRfb3t3XBxieYmPGDPwdsD8FT3qG1YExC2VVmxs6N"
+DEV_TARI_WALLET="12CLp1Enfi96pa7g6jm27E4Uaduuv5rRCD9vCD8MvCwsh5mrTXpvzmjEMG1prYCYSSz3bX7Yyt9mpP8T8d1P2fGN8wN"
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Durcissement bash : options de sécurité et débogage ───────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 set -Eeuo pipefail
@@ -107,15 +130,32 @@ if ! ping -c 3 -W 2 1.1.1.1 &> /dev/null && ! ping -c 3 -W 2 1.0.0.1 &> /dev/nul
 fi
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Vérification espace disque ────────────────────────────────────────────────────────────────────────────── #
+# Vérification espace disque (Intelligente) ─────────────────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-FREE_SPACE=$(df -BG /home | awk 'NR==2 {print $4}' | tr -d 'G')
+FREE_SPACE=$(df -BG "$WORKER_HOME" | awk 'NR==2 {print $4}' | tr -d 'G')
 
-[[ "$FREE_SPACE" -ge 250 ]] || {
-  printf "\e[31m✖  Espace disque insuffisant sur /home : %sGo disponibles.\e[0m\n" "$FREE_SPACE"
-  printf "   \e[31mIl faut au moins 250Go libres pour héberger les blockchains.\e[0m\n"
+EXISTING_DATA=0
+
+if [[ -d "$WORKER_HOME/.bitmonero" ]]; then
+  XMR_USED=$(du -sBG "$WORKER_HOME/.bitmonero" 2>/dev/null | awk '{print $1}' | tr -d 'G')
+  EXISTING_DATA=$((EXISTING_DATA + ${XMR_USED:-0}))
+fi
+
+if [[ -d "$WORKER_HOME/.tari" ]]; then
+  TARI_USED=$(du -sBG "$WORKER_HOME/.tari" 2>/dev/null | awk '{print $1}' | tr -d 'G')
+  EXISTING_DATA=$((EXISTING_DATA + ${TARI_USED:-0}))
+fi
+
+TOTAL_CAPACITY=$((FREE_SPACE + EXISTING_DATA))
+
+if [[ "$TOTAL_CAPACITY" -lt 250 ]]; then
+  printf "\e[31m✖  Espace disque insuffisant sur %s.\e[0m\n" "$WORKER_HOME"
+  printf "   Libre actuel      : %s Go\n" "$FREE_SPACE"
+  printf "   Déjà utilisé (XMR/Tari) : %s Go\n" "$EXISTING_DATA"
+  printf "   Total comptabilisé : %s Go (Requis : 250 Go)\n" "$TOTAL_CAPACITY"
+  printf "   \e[31mIl faut au moins 250Go (Libre + Données existantes) pour miner.\e[0m\n"
   exit 1
-}
+fi
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Initialisation ────────────────────────────────────────────────────────────────────────────────────────── #
@@ -145,29 +185,6 @@ spinner() {
   fi
   return $rc
 }
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Constantes ────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-WORKER_HOME=/home/worker
-P2POOL_PORT=37888
-STRATUM_PORT=3333
-CONFIG_FILE="/etc/diyxmr.conf"
-REFRESH_INTERVAL=120
-LAST_VERSION_CHECK=0
-VERSION_CHECK_INTERVAL=3600
-
-INSTALLED_P2POOL=""
-P2POOL_VERSION=""
-
-INSTALLED_TARI=""
-TARI_VERSION=""
-TARI_GRPC_PORT=18142
-TARI_P2P_PORT=18189
-GRUB_FILE="/etc/default/grub"
-
-DEV_XMR_WALLET="48hPv8m5vvFKd6KcubnpXCdepPYiL28w7ZwMpGZxsK55hBjzB5PkfzyRfb3t3XBxieYmPGDPwdsD8FT3qG1YExC2VVmxs6N"
-DEV_TARI_WALLET="12CLp1Enfi96pa7g6jm27E4Uaduuv5rRCD9vCD8MvCwsh5mrTXpvzmjEMG1prYCYSSz3bX7Yyt9mpP8T8d1P2fGN8wN"
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Formulaire de Configuration Interactif (TUI) ──────────────────────────────────────────────────────────── #
@@ -2042,7 +2059,7 @@ EOF
         printf "\r\033[K  ${FG_YELLOW}%s${RESET} Monero : %s | Height: %s/%s (Lag: %s) | %s peers   " \
           "${spinstr:$idx:1}" "${state}" "$height" "$display_target" "$lag" "$peers"
 
-        if ((last_block_ts > 0)) && ((time_diff < 1800)) && ([[ "$is_synced" == "true" ]] || ([[ "$state" != "Waiting for peers" ]] && ((lag <= 2)) && ((peers >= 2)))); then
+        if ((height > 0)) && ((last_block_ts > 0)) && ((time_diff < 1800)) && ([[ "$is_synced" == "true" ]] || ([[ "$state" != "Waiting for peers" ]] && ((lag <= 2)) && ((peers >= 2)))); then
           printf "\r\033[K  ${FG_GREEN}✔${RESET} Monero synchronisé (Hauteur: %s)\n" "$height"
           return 0
         fi
@@ -2515,7 +2532,7 @@ EOF
               is_synced="true"
             fi
 
-            if ((block_ts > 0)) && ((time_diff < 1800)) && [[ "$is_synced" == "true" ]] && ((peers >= 1)) && ((remaining <= 3)); then
+            if ((local_height > 0)) && ((block_ts > 0)) && ((time_diff < 1800)) && [[ "$is_synced" == "true" ]] && ((peers >= 1)) && ((remaining <= 3)); then
               printf "\r\033[K  ${FG_GREEN}✔${RESET} Tari synchronisé (Hauteur: %s)\n" "$local_height"
               return 0
             fi
@@ -3113,18 +3130,12 @@ EOF
   printf '─%.0s' {1..64}
   printf "${RESET}\n"
 
-  pause=true
+  pause=false # DEV false = décompte auto, true = attend ESPACE
   duration=5
   start_time=$(date +%s)
   pause_start=$(date +%s)
   elapsed_pause=0
   last_remaining=-1
-
-  # --- MODE DÉVELOPPEUR ---
-  # Met à 'true' pour que le script attende ESPACE au démarrage
-  # Met à 'false' pour le comportement utilisateur normal (5s de décompte)
-  pause=true
-  # ------------------------
 
   while :; do
     now=$(date +%s)
