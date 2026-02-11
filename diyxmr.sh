@@ -44,6 +44,25 @@ export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Styles ────────────────────────────────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+RESET='\e[0m'
+BOLD='\e[1m'
+FG_WHITE='\e[97m'
+FG_GREEN='\e[32m'
+FG_RED='\e[31m'
+FG_BLACK='\e[30m'
+FG_YELLOW='\e[33m'
+FG_BLUE='\e[34m'
+FG_CYAN='\e[36m'
+FG_MAGENTA='\e[35m'
+BG_WHITE='\e[47m'
+BG_RED='\e[41m'
+BG_MAGENTA='\e[45m'
+OK="✔"
+NO="✖"
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Durcissement bash : options de sécurité et débogage ───────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 set -Eeuo pipefail
@@ -63,7 +82,7 @@ trap 'printf "\e[31m✖  %s:%d : %s (code %s)\e[0m\n" \
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Vérification Connectivité Internet ────────────────────────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-if ! ping -c 1 -W 2 1.1.1.1 &>/dev/null && ! ping -c 1 -W 2 8.8.8.8 &>/dev/null; then
+if ! ping -c 3 -W 2 1.1.1.1 &> /dev/null && ! ping -c 3 -W 2 1.0.0.1 &> /dev/null; then
   printf "\n"
   printf "  \e[33m⚠  ATTENTION : Aucune connexion Internet détectée.\e[0m\n"
   printf "     Si vous utilisez un nœud distant (LAN) ou si tout est déjà installé, c'est OK.\n"
@@ -72,11 +91,11 @@ if ! ping -c 1 -W 2 1.1.1.1 &>/dev/null && ! ping -c 1 -W 2 8.8.8.8 &>/dev/null;
   while true; do
     read -rp "  ➜ Voulez-vous continuer quand même ? (o/N) : " choice
     case "$choice" in
-      [oO]|[oO][uU][iI])
+      [oO] | [oO][uU][iI])
         printf "  \e[33m➡  Continuation (Mode hors-ligne assumé)...\e[0m\n\n"
         break
         ;;
-      [nN]|[nN][oO][nN]|"")
+      [nN] | [nN][oO][nN] | "")
         printf "  \e[31m✖  Arrêt du script.\e[0m\n"
         exit 1
         ;;
@@ -99,32 +118,17 @@ FREE_SPACE=$(df -BG /home | awk 'NR==2 {print $4}' | tr -d 'G')
 }
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Initialisation + styles ───────────────────────────────────────────────────────────────────────────────── #
+# Initialisation ────────────────────────────────────────────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 clear
 sleep 0.1
-
-RESET='\e[0m'
-BOLD='\e[1m'
-FG_WHITE='\e[97m'
-FG_GREEN='\e[32m'
-FG_RED='\e[31m'
-FG_BLACK='\e[30m'
-FG_YELLOW='\e[33m'
-FG_BLUE='\e[34m'
-FG_CYAN='\e[36m'
-FG_MAGENTA='\e[35m'
-BG_WHITE='\e[47m'
-BG_MAGENTA='\e[45m'
-OK="✔"
-NO="✖"
 
 spinner() {
   local pid=$1 msg="$2"
   local delay=0.15 spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
   local clean_msg="\e[97m$msg\e[0m"
 
-  while kill -0 "$pid" 2>/dev/null; do
+  while kill -0 "$pid" 2> /dev/null; do
     for ((i = 0; i < ${#spinstr}; i++)); do
       printf "\r  ${FG_YELLOW}%s${RESET} %b" "${spinstr:$i:1}" "$clean_msg"
       sleep "$delay"
@@ -141,19 +145,6 @@ spinner() {
   fi
   return $rc
 }
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# En-tête ───────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "${FG_WHITE}${BOLD}"
-printf '▣%.0s' {1..64}
-printf "\n"
-
-printf "🚀 diyXMR v1.0${RESET}  ${FG_MAGENTA}— Stack de minage Monero auto-géré\n"
-printf "${FG_YELLOW}${BOLD}🄯  diybypass.xyz${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '▣%.0s' {1..64}
-printf "\n\n${RESET}"
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Constantes ────────────────────────────────────────────────────────────────────────────────────────────── #
@@ -185,7 +176,7 @@ configure_wizard() {
   [[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
 
   if [[ -z "${MINING_MODE:-}" ]]; then
-    local ram_mb=$(free -m | awk '/Mem:/ {print $2}')
+    local ram_mb=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
     local cpu_cores=$(nproc)
 
     if ((ram_mb < 3800 || cpu_cores < 4)); then
@@ -324,6 +315,33 @@ configure_wizard() {
 
     echo -e "  ${FG_CYAN}0)${RESET} Annuler / Sortir"
 
+    echo -e "\n  ${FG_YELLOW}⚠  PORTS À OUVRIR (BOX INTERNET / NAT)${RESET}"
+
+    echo -e "   ➜ TCP ${BOLD}18080${RESET} : Monero Node (Synchronisation)"
+
+    case "$MINING_MODE" in
+      "pool-mini")
+        echo -e "   ➜ TCP ${BOLD}37888${RESET} : P2Pool ${BOLD}Mini${RESET} (Sidechain)"
+        ;;
+      "pool-full")
+        echo -e "   ➜ TCP ${BOLD}37889${RESET} : P2Pool ${BOLD}Full${RESET} (Sidechain)"
+        ;;
+      "pool-nano")
+        echo -e "   ➜ TCP ${BOLD}37890${RESET} : P2Pool ${BOLD}Nano${RESET} (Sidechain)"
+        ;;
+      "solo")
+        echo -e "   ➜ ${FG_GRAY}(Pas de port P2Pool requis en mode Solo)${RESET}"
+        ;;
+    esac
+
+    if [[ -n "$TARI_ADDRESS" ]]; then
+      echo -e "   ➜ TCP ${BOLD}18189${RESET} : Tari Node (Merge Mining)"
+    fi
+
+    if [[ "$SSH_PORT" -gt 0 ]]; then
+      echo -e "   ➜ TCP ${BOLD}$SSH_PORT${RESET}  : Accès SSH Distant"
+    fi
+
     read -rp $'\n➜  Modifier option (0-6) : ' choice
     case "$choice" in
       1)
@@ -420,7 +438,7 @@ configure_wizard() {
       6)
         if [[ -n "$MONERO_ADDRESS" ]]; then
           echo -e "\n${FG_GREEN}💾 Sauvegarde de la configuration...${RESET}"
-          cat <<EOF >"$CONFIG_FILE"
+          cat << EOF > "$CONFIG_FILE"
 MONERO_ADDRESS="$MONERO_ADDRESS"
 TARI_ADDRESS="$TARI_ADDRESS"
 MINING_MODE="$MINING_MODE"
@@ -464,9 +482,97 @@ EOF
   done
 }
 
+if [[ "${1:-}" == "--config" || "${1:-}" == "-c" ]]; then
+  configure_wizard
+fi
+
 [[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
 
 if [[ "${INITIAL_SETUP_DONE:-}" != "yes" ]]; then
+  configure_wizard
+fi
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# On arrête les services ────────────────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+stop_stack() {
+  printf "\n${FG_CYAN}${BOLD}⏹  Arrêt des services du stack diyXMR${RESET}\n"
+  printf "${FG_WHITE}${BOLD}─%.0s${RESET}" {1..64}
+  printf "\n"
+
+  for svc in xmrig p2pool minotari_node monerod; do
+    if systemctl is-active --quiet "$svc"; then
+      (systemctl stop "$svc" 2> /dev/null) &
+      spinner $! "Arrêt de $svc..."
+    fi
+  done
+
+  printf "\n${FG_YELLOW}❓ Souhaitez-vous aussi désactiver le lancement automatique au démarrage ? (o/N) : ${RESET}"
+  read -r reply
+  if [[ "$reply" =~ ^[oO](ui)?$ ]]; then
+    printf "\n"
+    for svc in xmrig p2pool minotari_node monerod; do
+      if systemctl is-enabled --quiet "$svc" 2> /dev/null; then
+        (systemctl disable "$svc" 2> /dev/null) &
+        spinner $! "Désactivation de $svc..."
+      fi
+    done
+    printf "  ${FG_GREEN}✔${RESET} Lancement automatique désactivé.\n"
+  fi
+
+  printf "\n  ${FG_GREEN}✔${RESET} Le stack a été traité proprement.\n"
+  exit 0
+}
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Gestion des arguments CLI ─────────────────────────────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+show_help() {
+  echo -e "${BOLD}USAGE:${RESET} sudo ./diyxmr.sh [OPTIONS]"
+  echo
+  echo -e "${BOLD}OPTIONS:${RESET}"
+  echo -e "  ${FG_GREEN}--tui${RESET}       : Affiche directement le tableau de bord (Monitoring seul)."
+  echo -e "  ${FG_GREEN}--config${RESET}    : Force le lancement de l'assistant de configuration."
+  echo -e "  ${FG_GREEN}--stop${RESET}      : Arrête proprement tous les services du stack."
+  echo -e "  ${FG_GREEN}--help${RESET}      : Affiche ce message d'aide."
+  echo
+  echo -e "${BOLD}RACCOURCIS CLAVIER (dans le tableau de bord) :${RESET}"
+  echo -e "  ${BOLD}[E]${RESET} : Quitter / Arrêter les services"
+  echo -e "  ${BOLD}[S]${RESET} : Modifier les paramètres (Setup)"
+  echo -e "  ${BOLD}[U]${RESET} : Mettre à jour le script (Update)"
+  echo -e "  ${BOLD}[X]${RESET} : Désinstaller / Nettoyer (Exit/Clean)"
+  echo -e "  ${BOLD}[L]${RESET} : Voir les logs en direct"
+  echo -e "  ${BOLD}[D]${RESET} : Soutenir le projet (Dev donation)"
+  echo
+  exit 0
+}
+
+JUST_TUI=false
+
+case "${1:-}" in
+  --tui)
+    JUST_TUI=true
+    ;;
+  --config)
+    configure_wizard
+    ;;
+  --stop)
+    stop_stack
+    ;;
+  --help)
+    show_help
+    ;;
+esac
+
+if [[ -f "$CONFIG_FILE" ]]; then
+  source "$CONFIG_FILE"
+fi
+
+if [[ "${INITIAL_SETUP_DONE:-}" != "yes" ]]; then
+  if [[ "$JUST_TUI" == "true" ]]; then
+    echo -e "${FG_YELLOW}⚠ Configuration introuvable. Lancement du setup obligatoire avant le TUI.${RESET}"
+    sleep 2
+  fi
   configure_wizard
 fi
 
@@ -507,7 +613,7 @@ github_latest_tag() {
   tag=$(
     { curl -fsSL -H 'Accept: application/vnd.github+json' \
       -H 'User-Agent: Mozilla/5.0' \
-      "$api_url" | jq -r .tag_name; } 2>/dev/null
+      "$api_url" || echo "{}"; } | jq -r '.tag_name // empty' 2> /dev/null
   )
 
   if [[ -z "$tag" || "$tag" == "null" ]]; then
@@ -551,16 +657,16 @@ verify_archive() {
     spinner $! "Téléchargement signature ($label)"
   fi
 
-  if ! gpg --list-keys "$gpg_url" &>/dev/null; then
-    curl -fsSL -A "Mozilla/5.0" "$gpg_url" | gpg --import &>/dev/null &
+  if ! gpg --list-keys "$gpg_url" &> /dev/null; then
+    curl -fsSL -A "Mozilla/5.0" "$gpg_url" | gpg --import &> /dev/null &
     spinner $! "Import de la clé GPG ($label)"
   fi
 
   if [[ -s "$tmp_dir/HASHES.sig" ]]; then
-    gpg --verify "$tmp_dir/HASHES.sig" "$tmp_dir/HASHES" &>/dev/null &
+    gpg --verify "$tmp_dir/HASHES.sig" "$tmp_dir/HASHES" &> /dev/null &
     spinner $! "Vérification GPG de la signature ($label)"
   else
-    gpg --verify "$tmp_dir/HASHES" &>/dev/null &
+    gpg --verify "$tmp_dir/HASHES" &> /dev/null &
     spinner $! "Vérification GPG ($label)"
   fi
 
@@ -603,14 +709,14 @@ fetch_latest_version() {
   local tmp_file="/tmp/version_$outvar"
 
   (
-    if tag=$(github_latest_tag "$repo" 2>/dev/null); then
+    if tag=$(github_latest_tag "$repo" 2> /dev/null); then
       echo "$outvar=\"$tag\""
       exit 0
     else
       echo "$outvar=\"\""
       exit 0
     fi
-  ) >"$tmp_file" &
+  ) > "$tmp_file" &
 
   spinner $! "Recherche version $label"
   source "$tmp_file"
@@ -618,7 +724,7 @@ fetch_latest_version() {
 
   if [[ -z "${!outvar}" ]]; then
     local found_local
-    found_local=$(command -v "${label,,}" || find "$WORKER_HOME" -maxdepth 1 -type d -iname "${label,,}-*" 2>/dev/null)
+    found_local=$(command -v "${label,,}" || find "$WORKER_HOME" -maxdepth 1 -type d -iname "${label,,}-*" 2> /dev/null)
 
     if [[ -n "$found_local" ]]; then
       printf "  ${FG_YELLOW}⚠${RESET} \e[97m%s : quota GitHub atteint — utilisation de la version actuelle.\e[0m\n" "$label"
@@ -658,7 +764,7 @@ download_and_extract() {
   if [[ $url == *github.com/tari-project/tari/releases/download* && -n ${version:-} ]]; then
 
     local api_url="https://api.github.com/repos/tari-project/tari/releases/tags/${version}"
-    local assets_json=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" -H "User-Agent: diyxmr-script" "$api_url" 2>/dev/null)
+    local assets_json=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" -H "User-Agent: diyxmr-script" "$api_url" 2> /dev/null)
 
     local zip_filename=$(echo "$assets_json" | grep -oP '"name":\s*"\K[^"]*mainnet[^"]*linux-x86_64\.zip(?=")' | grep -v '\.sha256' | head -n1)
 
@@ -682,7 +788,7 @@ download_and_extract() {
 
     local checksum_file
     checksum_file=$(mktemp)
-    if curl -fsSL "$checksum_url" -o "$checksum_file" 2>/dev/null; then
+    if curl -fsSL "$checksum_url" -o "$checksum_file" 2> /dev/null; then
       local expected_hash=$(cat "$checksum_file" | awk '{print $1}')
       local actual_hash=$(sha256sum "$tmp_file" | awk '{print $1}')
 
@@ -703,7 +809,7 @@ download_and_extract() {
     extract_dir=$(mktemp -d)
     printf "  ${FG_YELLOW}⠋${RESET} Extraction du package Tari..."
 
-    if unzip -q -o "$tmp_file" -d "$extract_dir" >/dev/null 2>&1; then
+    if unzip -q -o "$tmp_file" -d "$extract_dir" > /dev/null 2>&1; then
       printf "\r  ${FG_GREEN}✔${RESET} Extraction du package Tari réussie\n"
     else
       printf "\r  ${FG_RED}✖${RESET} Échec de l'extraction Tari\n"
@@ -713,14 +819,14 @@ download_and_extract() {
 
     mkdir -p "$dest_dir/tari-${version}"
 
-    local bin_path=$(find "$extract_dir" -name "minotari_node" -type f 2>/dev/null | head -n1)
+    local bin_path=$(find "$extract_dir" -name "minotari_node" -type f 2> /dev/null | head -n1)
 
     if [[ -f "$bin_path" ]]; then
       local source_dir="${bin_path%/*}"
 
       cp -r "$source_dir"/* "$dest_dir/tari-${version}/"
 
-      chmod +x "$dest_dir/tari-${version}/"* 2>/dev/null
+      chmod +x "$dest_dir/tari-${version}/minotari_"* 2> /dev/null
 
       printf "  ${FG_GREEN}✔${RESET} Suite Tari complète installée (Node, Wallet, Miner...)\n"
     else
@@ -796,6 +902,74 @@ download_and_extract() {
   rm -f "$tmp_file"
 }
 
+check_monero_corruption() {
+  local current_id=$(systemctl show -p InvocationID --value monerod.service 2> /dev/null)
+
+  if [[ -z "$current_id" ]]; then
+    return 0
+  fi
+
+  if journalctl _SYSTEMD_INVOCATION_ID="$current_id" --no-pager 2> /dev/null | grep -v "blocked" | grep -qE "MDB_CORRUPTED|MDB_PANIC|MDB_VERSION_MISMATCH"; then
+
+    systemctl stop xmrig p2pool minotari_node monerod 2> /dev/null
+    killall -9 monerod xmrig p2pool minotari_node 2> /dev/null || true
+
+    clear
+    printf "\n"
+    printf "${BG_RED}${FG_WHITE}${BOLD} ☠️  ALERTE CRITIQUE : BASE DE DONNÉES MONERO CORROMPUE ☠️  ${RESET}\n\n"
+    printf "${FG_RED}  Erreur fatale détectée dans la session actuelle.${RESET}\n"
+    printf "${FG_RED}  Code erreur : MDB_PAGE_NOTFOUND (Base illisible).${RESET}\n\n"
+
+    printf "${FG_YELLOW}${BOLD}  🔍 CAUSE & SOLUTION${RESET}\n"
+    printf "  La base LMDB est corrompue. Il faut la supprimer pour que Monero reparte de zéro.\n"
+    printf "  Cause : RAM instable (XMP/EXPO) ou coupure brutale.\n\n"
+
+    printf "${FG_WHITE}${BOLD}  🛠️  COMMANDES POUR RÉPARER :${RESET}\n"
+    printf "  Il faut supprimer les données locales pour forcer une resynchronisation :\n\n"
+
+    printf "${FG_GREEN}  sudo rm -rf ~/.bitmonero${RESET}\n"
+    printf "${FG_GREEN}  sudo systemctl start monerod${RESET}\n\n"
+
+    printf "  Une fois fait, relancez ce script.\n"
+
+    exit 1
+  fi
+}
+
+check_tari_corruption() {
+  local current_id=$(systemctl show -p InvocationID --value minotari_node.service 2> /dev/null)
+
+  if [[ -z "$current_id" ]]; then
+    return 0
+  fi
+
+  if journalctl _SYSTEMD_INVOCATION_ID="$current_id" --no-pager 2> /dev/null | grep -qE "CorruptedDatabase|Database is corrupted|PoisonError|LMDB error"; then
+
+    systemctl stop minotari_node 2> /dev/null
+    killall -9 minotari_node 2> /dev/null || true
+
+    clear
+    printf "\n"
+    printf "${BG_RED}${FG_WHITE}${BOLD} ☠️  ALERTE CRITIQUE : BASE DE DONNÉES TARI CORROMPUE ☠️  ${RESET}\n\n"
+    printf "${FG_RED}  Le nœud Tari a craché (Corruption Base de Données).${RESET}\n"
+    printf "${FG_RED}  Le minage fusionné (Merge Mining) est impossible.${RESET}\n\n"
+
+    printf "${FG_YELLOW}${BOLD}  🔍 CAUSE & SOLUTION${RESET}\n"
+    printf "  La blockchain Tari est corrompue. Le minage fusionné est impossible.\n"
+    printf "  Cause : RAM instable (XMP/EXPO) ou coupure brutale.\n\n"
+
+    printf "${FG_WHITE}${BOLD}  🛠️  COMMANDES POUR RÉPARER :${RESET}\n"
+    printf "  Il faut supprimer les données locales pour forcer une resynchronisation :\n\n"
+
+    printf "${FG_GREEN}  sudo rm -rf ~/.tari${RESET}\n"
+    printf "${FG_GREEN}  sudo systemctl start minotari_node${RESET}\n\n"
+
+    printf "  Une fois fait, relancez ce script.\n"
+
+    exit 1
+  fi
+}
+
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Attendre qu’un service ouvre son port ─────────────────────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
@@ -807,7 +981,7 @@ wait_service_port() {
 
   local delay=0.15 spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏' i=0 t rc
 
-  ((restart)) && systemctl restart "$service" &>/dev/null
+  ((restart)) && systemctl restart "$service" &> /dev/null
   sleep 1
 
   printf "  ${FG_YELLOW}%s${RESET} %s" "${spinstr:0:1}" "$msg"
@@ -842,7 +1016,7 @@ wait_rpc_ready() {
 
   while ((tries < retries)); do
 
-    output=$(curl -s -w "%{http_code}" -o /dev/null http://127.0.0.1:18081/get_info 2>/dev/null || echo "000")
+    output=$(curl -s -w "%{http_code}" -o /dev/null http://127.0.0.1:18081/get_info 2> /dev/null || echo "000")
 
     if [[ "$output" == "200" ]]; then
       printf "\r\033[K  ${FG_GREEN}✔${RESET} API Monero disponible (port 18081)\n"
@@ -873,7 +1047,7 @@ check_xmrvsbeast() {
   fi
 
   local api_url="https://xmrvsbeast.com/cgi-bin/p2pool_bonus_history_api.cgi?address=${address}"
-  local response=$(curl -sf --max-time 5 --connect-timeout 3 "$api_url" 2>/dev/null || echo "")
+  local response=$(curl -sf --max-time 5 --connect-timeout 3 "$api_url" 2> /dev/null || echo "")
 
   if [[ -z "$response" ]]; then
     echo "unknown"
@@ -901,8 +1075,8 @@ ensure_unit() {
   local restart_var="RESTART_${unit_name^^}"
   restart_var="${restart_var//./_}"
 
-  if ! diff -q <(echo "$2") "$target" &>/dev/null; then
-    echo "$2" >"$target"
+  if ! diff -q <(echo "$2") "$target" &> /dev/null; then
+    echo "$2" > "$target"
     chmod 644 "$target"
     printf "  ${FG_YELLOW}⚙${RESET} \e[97m%-18s : synchronisée\e[0m\n" "$unit_name"
     systemctl daemon-reexec
@@ -920,7 +1094,7 @@ ensure_running_enabled() {
   local changed=0
 
   if ! systemctl is-enabled --quiet "$s"; then
-    systemctl enable "$s" >/dev/null 2>&1
+    systemctl enable "$s" > /dev/null 2>&1
     changed=1
     printf "  ${FG_YELLOW}✚${RESET} %s activé au démarrage\n" "$s"
   fi
@@ -952,7 +1126,7 @@ describe_component() {
   fi
 
   local is_active
-  is_active=$(systemctl is-active "$service" 2>/dev/null || echo "inactive")
+  is_active=$(systemctl is-active "$service" 2> /dev/null || echo "inactive")
 
   if [[ "$is_active" != "active" ]]; then
     printf "  ${FG_RED}✖${RESET} ${FG_WHITE}${display_name} est installé mais son service est arrêté.${RESET}\n"
@@ -962,7 +1136,7 @@ describe_component() {
   local since_str="—"
   local uptime_monotonic now elapsed uptime_d uptime_h uptime_m
 
-  uptime_monotonic=$(systemctl show -p ActiveEnterTimestampMonotonic "$service" 2>/dev/null | awk -F= '{print $2}')
+  uptime_monotonic=$(systemctl show -p ActiveEnterTimestampMonotonic "$service" 2> /dev/null | awk -F= '{print $2}')
   now=$(awk '{print int($1)}' /proc/uptime)
 
   if [[ "$uptime_monotonic" =~ ^[0-9]+$ ]]; then
@@ -993,233 +1167,271 @@ describe_component() {
 #############################################################################################################
 #############################################################################################################
 
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Résumé de configuration utilisateur ───────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}📝  Résumé de la configuration choisie${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
+if [[ "$JUST_TUI" == "false" ]]; then
 
-short_addr="${MONERO_ADDRESS:0:11}…${MONERO_ADDRESS: -6}"
-type="standard"
-[[ $MONERO_ADDRESS =~ ^8 ]] && type="sous-adresse"
-[[ $MONERO_ADDRESS =~ ^4[0-9AB] && ${#MONERO_ADDRESS} -gt 100 ]] && type="adresse intégrée"
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # En-tête ───────────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "${FG_WHITE}${BOLD}"
+  printf '▣%.0s' {1..64}
+  printf "\n"
 
-if [[ -n "$TARI_ADDRESS" ]]; then
-  short_tari="${TARI_ADDRESS:0:11}…${TARI_ADDRESS: -6}"
-else
-  short_tari=""
-fi
+  printf "🚀 diyXMR v1.0${RESET}  ${FG_MAGENTA}— Stack de minage Monero auto-géré\n"
+  printf "${FG_YELLOW}${BOLD}🄯  diybypass.xyz${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '▣%.0s' {1..64}
+  printf "\n\n${RESET}"
 
-case "$XMRIG_MODE" in
-  perf) mode_label="performance" ;;
-  eco) mode_label="économique" ;;
-  *) mode_label="inconnu" ;;
-esac
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Résumé de configuration utilisateur ───────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}📝  Résumé de la configuration choisie${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
 
-case "$MINING_MODE" in
-  solo) mining_label="SOLO" ;;
-  pool-nano) mining_label="P2Pool NANO" ;;
-  pool-mini) mining_label="P2Pool MINI" ;;
-  pool-full) mining_label="P2Pool FULL" ;;
-  moneroocean) mining_label="MoneroOcean" ;;
-  *) mining_label="inconnu" ;;
-esac
+  short_addr="${MONERO_ADDRESS:0:11}…${MONERO_ADDRESS: -6}"
+  type="standard"
+  [[ $MONERO_ADDRESS =~ ^8 ]] && type="sous-adresse"
+  [[ $MONERO_ADDRESS =~ ^4[0-9AB] && ${#MONERO_ADDRESS} -gt 100 ]] && type="adresse intégrée"
 
-printf "  ${FG_GREEN}✔${RESET} Mode de minage   : %s\n" "$mining_label"
-if [[ -n "$TARI_ADDRESS" ]]; then
-  printf "  ${FG_GREEN}✔${RESET} Merge mining     : %s (Tari)\n" "$short_tari"
-else
-  printf "  ${FG_YELLOW}○${RESET} Merge mining     : désactivé\n"
-fi
-printf "  ${FG_GREEN}✔${RESET} Adresse Monero   : %s\n" "$short_addr"
-printf "  ${FG_GREEN}✔${RESET} Type d’adresse   : %s\n" "$type"
-printf "  ${FG_GREEN}✔${RESET} Mode XMRig       : %s\n" "$mode_label"
-if [[ "${SSH_PORT:-0}" -gt 0 ]]; then
-  ssh_msg="autorisé (port $SSH_PORT)"
-else
-  ssh_msg="bloqué"
-fi
-printf "  ${FG_GREEN}✔${RESET} Accès SSH        : %s\n" "$ssh_msg"
+  if [[ -n "$TARI_ADDRESS" ]]; then
+    short_tari="${TARI_ADDRESS:0:11}…${TARI_ADDRESS: -6}"
+  else
+    short_tari=""
+  fi
 
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Dépendances ───────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🔧  Pré-requis système${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
+  case "$XMRIG_MODE" in
+    perf) mode_label="performance" ;;
+    eco) mode_label="économique" ;;
+    *) mode_label="inconnu" ;;
+  esac
 
-if id -u worker &>/dev/null; then
-  printf "  ${FG_GREEN}✔${RESET} utilisateur « worker » déjà présent\n"
-else
+  case "$MINING_MODE" in
+    solo) mining_label="SOLO" ;;
+    pool-nano) mining_label="P2Pool NANO" ;;
+    pool-mini) mining_label="P2Pool MINI" ;;
+    pool-full) mining_label="P2Pool FULL" ;;
+    moneroocean) mining_label="MoneroOcean" ;;
+    *) mining_label="inconnu" ;;
+  esac
+
+  printf "  ${FG_GREEN}✔${RESET} Mode de minage   : %s\n" "$mining_label"
+  if [[ -n "$TARI_ADDRESS" ]]; then
+    printf "  ${FG_GREEN}✔${RESET} Merge mining     : %s (Tari)\n" "$short_tari"
+  else
+    printf "  ${FG_YELLOW}○${RESET} Merge mining     : désactivé\n"
+  fi
+  printf "  ${FG_GREEN}✔${RESET} Adresse Monero   : %s\n" "$short_addr"
+  printf "  ${FG_GREEN}✔${RESET} Type d’adresse   : %s\n" "$type"
+  printf "  ${FG_GREEN}✔${RESET} Mode XMRig       : %s\n" "$mode_label"
+  if [[ "${SSH_PORT:-0}" -gt 0 ]]; then
+    ssh_msg="autorisé (port $SSH_PORT)"
+  else
+    ssh_msg="bloqué"
+  fi
+  printf "  ${FG_GREEN}✔${RESET} Accès SSH        : %s\n" "$ssh_msg"
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Optimisation Réseau : IPv4/IPv6 + Privacy + Performance BBR + Ultra Low Latency ───────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🌍  Optimisation Pile Réseau (IPv4 & IPv6 + BBR + DNS)${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  cat << EOF > /etc/sysctl.d/99-mining-network.conf
+net.ipv6.conf.all.disable_ipv6 = 0
+net.ipv6.conf.default.disable_ipv6 = 0
+net.ipv6.conf.lo.disable_ipv6 = 0
+net.ipv6.conf.all.use_tempaddr = 2
+net.ipv6.conf.default.use_tempaddr = 2
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_fastopen = 3
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 65535
+net.ipv4.tcp_max_syn_backlog = 65535
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_keepalive_time = 300
+net.ipv4.tcp_keepalive_probes = 5
+net.ipv4.tcp_keepalive_intvl = 15
+EOF
+
   (
-    adduser --disabled-password --gecos '' worker &>/dev/null
+    rm -f /etc/sysctl.d/*ipv6*.conf 2> /dev/null
+    modprobe tcp_bbr 2> /dev/null
+    sysctl --system > /dev/null 2>&1
   ) &
-  spinner $! "Création de l'utilisateur « worker »"
-  printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} utilisateur « worker » créé\n"
-fi
+  pid=$!
+  spinner "$pid" "Optimisation TCP/IP (BBR + FastOpen + Privacy)"
 
-if timedatectl status 2>/dev/null | grep -q "synchronized: yes"; then
-  printf "  ${FG_GREEN}✔${RESET} Horloge système synchronisée\n"
-else
+  UPDATE_GRUB=false
+  GRUB_FILE="/etc/default/grub"
+
+  if grep -q 'ipv6.disable=1' "$GRUB_FILE"; then
+    sed -i 's/ ipv6.disable=1//g' "$GRUB_FILE"
+    sed -i 's/ipv6.disable=1 //g' "$GRUB_FILE"
+    sed -i 's/ipv6.disable=1//g' "$GRUB_FILE"
+    sed -i 's/GRUB_CMDLINE_LINUX="  /GRUB_CMDLINE_LINUX=" /g' "$GRUB_FILE"
+    UPDATE_GRUB=true
+  fi
+
+  if $UPDATE_GRUB; then
+    (update-grub > /dev/null 2>&1) &
+    pid=$!
+    spinner "$pid" "Déblocage IPv6 dans GRUB (Reboot requis pour appliquer)"
+  else
+    echo -e "  ${FG_GREEN}✔${RESET} GRUB              : IPv6 déjà autorisé au démarrage"
+  fi
+
   (
-    timedatectl set-ntp true 2>/dev/null
-    systemctl restart systemd-timesyncd 2>/dev/null
+    mkdir -p /etc/systemd
 
-    for i in {1..20}; do
-      if timedatectl status 2>/dev/null | grep -q "synchronized: yes"; then
-        break
+    cat << EOFCONF > /etc/systemd/resolved.conf
+[Resolve]
+DNS=1.1.1.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com
+FallbackDNS=1.0.0.1#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com
+Domains=~.
+DNSOverTLS=yes
+DNSSEC=allow-downgrade
+Cache=yes
+DNSStubListener=yes
+EOFCONF
+
+    if [[ "$(readlink /etc/resolv.conf)" != "/run/systemd/resolve/stub-resolv.conf" ]]; then
+      if [[ -f /etc/resolv.conf && ! -L /etc/resolv.conf ]]; then
+        cp /etc/resolv.conf "/etc/resolv.conf.bak.$(date +%F-%H%M)"
       fi
-      sleep 0.5
+      rm -f /etc/resolv.conf
+      ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+    fi
+
+    systemctl enable systemd-resolved --now > /dev/null 2>&1
+    systemctl restart systemd-resolved
+
+    for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -vE "lo|docker|veth|tun|tap|virbr"); do
+
+      if ip link show "$iface" | grep -q "state UP"; then
+        resolvectl dns "$iface" 1.1.1.1 2606:4700:4700::1111 2> /dev/null
+        resolvectl domain "$iface" "~." 2> /dev/null
+        resolvectl dnsovertls "$iface" yes 2> /dev/null
+      fi
     done
+
   ) &
-  spinner $! "Synchronisation de l'horloge système (NTP)"
+  pid=$!
+  spinner "$pid" "Activation DNS Cache & Furtif (Priorité Globale)"
 
-  if timedatectl status 2>/dev/null | grep -q "synchronized: yes"; then
-    printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Horloge système synchronisée\n"
-  else
-    printf "\033[A\r\033[K  ${FG_YELLOW}⚠${RESET} Horloge non synchronisée (vérifiez la connexion ou le service NTP)\n"
-  fi
-fi
-
-deps=(curl jq ufw gnupg tar unzip bzip2 netcat-openbsd iproute2 ca-certificates fail2ban tor wget qrencode)
-
-(
-  DEBIAN_FRONTEND=noninteractive \
-    apt-get update -qq -o=Dpkg::Use-Pty=0 -o=APT::Color=0 &>/dev/null
-) &
-spinner $! "Mise à jour de l'index APT"
-printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Mise à jour de l'index APT\n"
-
-APT_OPTS=(-y -qq --no-install-recommends
-  -o=Dpkg::Use-Pty=0 -o=Dpkg::Progress-Fancy=0 -o=APT::Color=0)
-
-for pkg in "${deps[@]}"; do
-  INSTALLED=$(dpkg -s "$pkg" 2>/dev/null | grep "Status: install ok installed" || true)
-  OLD_VER=$(dpkg -s "$pkg" 2>/dev/null | grep -E '^Version:' | awk '{print $2}' || true)
+  NET_DATA_TMP=$(mktemp)
 
   (
-    NEEDRESTART_MODE=a \
-      DEBIAN_FRONTEND=noninteractive \
-      apt-get install "${APT_OPTS[@]}" "$pkg" &>/dev/null ||
-      (apt-get update -qq &>/dev/null && apt-get install "${APT_OPTS[@]}" "$pkg" &>/dev/null)
+    {
+      echo "IPV6_NOW=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2> /dev/null || echo 1)"
+      echo "CONGESTION=$(sysctl -n net.ipv4.tcp_congestion_control 2> /dev/null || echo 'unknown')"
+
+      for i in {1..15}; do
+        if resolvectl status 2> /dev/null | grep -q "DNS over TLS"; then break; fi
+        sleep 0.5
+      done
+      echo "DOT_STATUS=$(resolvectl status 2> /dev/null | grep 'DNS over TLS' | head -1 | awk '{print $4}' || echo 'Unknown')"
+
+      sleep 1
+      echo "PING_CF=$(ping -c 2 -q -W 3 1.1.1.1 2> /dev/null | awk -F'/' '/^(rtt|round-trip)/ {print $5}' || echo '')"
+      echo "PING_V6=$(ping6 -c 2 -q -W 3 2606:4700:4700::1111 2> /dev/null | awk -F'/' '/^(rtt|round-trip)/ {print $5}' || echo '')"
+      echo "PING_CF2=$(ping -c 2 -q -W 3 1.0.0.1 2> /dev/null | awk -F'/' '/^(rtt|round-trip)/ {print $5}' || echo '')"
+      echo "PING_V6_2=$(ping6 -c 2 -q -W 3 2606:4700:4700::1001 2> /dev/null | awk -F'/' '/^(rtt|round-trip)/ {print $5}' || echo '')"
+    } >> "$NET_DATA_TMP"
   ) &
-  spinner $! "Vérification/Mise à jour de $pkg"
 
-  NEW_VER=$(dpkg -s "$pkg" 2>/dev/null | grep -E '^Version:' | awk '{print $2}' || true)
+  spinner $! "Analyse de la performance et sécurité réseau"
 
-  if [[ -z "$INSTALLED" ]]; then
-    if [[ -n "$NEW_VER" ]]; then
-      printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} %s installé (v%s)\n" "$pkg" "$NEW_VER"
-    else
-      printf "\033[A\r\033[K  ${FG_RED}✖${RESET} Erreur : %s n'a pas pu être installé\n" "$pkg"
-    fi
-  elif [[ "$OLD_VER" != "$NEW_VER" ]]; then
-    printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} %s mis à jour (v%s → v%s)\n" "$pkg" "$OLD_VER" "$NEW_VER"
+  source "$NET_DATA_TMP"
+  rm -f "$NET_DATA_TMP"
+
+  if [ "$IPV6_NOW" -eq "0" ]; then
+    echo -e "  ${FG_GREEN}✔${RESET} Protocole IPv6    : ACTIF (Extensions Privacy activées)"
   else
-    printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} %s est à jour (v%s)\n" "$pkg" "$NEW_VER"
+    echo -e "  ${FG_YELLOW}⚠${RESET} Protocole IPv6    : Inactif (Sera actif au redémarrage)"
   fi
-done
 
-fetch_latest_version "grpcurl" "fullstorydev/grpcurl" GRPCURL_VERSION
-
-if command -v grpcurl &>/dev/null; then
-  INSTALLED_GRPCURL=$(grpcurl -version 2>&1 | awk '{print $NF}' | tr -d '\n\r')
-
-  if [[ -n "$GRPCURL_VERSION" && "$GRPCURL_VERSION" != "v0.0.0" && "$INSTALLED_GRPCURL" != "$GRPCURL_VERSION" ]]; then
-    printf "  ${FG_YELLOW}⇧${RESET} grpcurl    : ${INSTALLED_GRPCURL} → ${GRPCURL_VERSION}\n"
-
-    grpcurl_ver="${GRPCURL_VERSION#v}"
-    grpcurl_url="https://github.com/fullstorydev/grpcurl/releases/download/${GRPCURL_VERSION}/grpcurl_${grpcurl_ver}_linux_x86_64.tar.gz"
-
-    if wget --timeout=10 -q "$grpcurl_url" -O /tmp/grpcurl.tar.gz 2>/dev/null && [[ -s /tmp/grpcurl.tar.gz ]]; then
-      (
-        tar -xzf /tmp/grpcurl.tar.gz -C /usr/local/bin grpcurl 2>/dev/null
-        chmod +x /usr/local/bin/grpcurl
-        rm -f /tmp/grpcurl.tar.gz
-      ) &
-      spinner $! "Mise à jour grpcurl"
-      printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} grpcurl mis à jour vers ${GRPCURL_VERSION}\n"
-    else
-      printf "\033[A\r\033[K  ${FG_RED}✖${RESET} Téléchargement grpcurl échoué (quota ou réseau)\n"
-      rm -f /tmp/grpcurl.tar.gz
-    fi
+  if [[ "$CONGESTION" == "bbr" ]]; then
+    echo -e "  ${FG_GREEN}✔${RESET} Performance TCP   : BBR (Optimisé Low Latency)"
   else
-    printf "  ${FG_GREEN}✔${RESET} grpcurl ${INSTALLED_GRPCURL} déjà prêt\n"
+    echo -e "  ${FG_YELLOW}⚠${RESET} Performance TCP   : $CONGESTION (Standard)"
   fi
-else
-  if [[ -n "$GRPCURL_VERSION" && "$GRPCURL_VERSION" != "v0.0.0" ]]; then
-    grpcurl_ver="${GRPCURL_VERSION#v}"
-    grpcurl_url="https://github.com/fullstorydev/grpcurl/releases/download/${GRPCURL_VERSION}/grpcurl_${grpcurl_ver}_linux_x86_64.tar.gz"
 
-    if wget --timeout=10 -q "$grpcurl_url" -O /tmp/grpcurl.tar.gz 2>/dev/null && [[ -s /tmp/grpcurl.tar.gz ]]; then
-      (
-        tar -xzf /tmp/grpcurl.tar.gz -C /usr/local/bin grpcurl 2>/dev/null
-        chmod +x /usr/local/bin/grpcurl
-        rm -f /tmp/grpcurl.tar.gz
-      ) &
-      spinner $! "Installation grpcurl ${GRPCURL_VERSION}"
-      printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} grpcurl ${GRPCURL_VERSION} installé\n"
-    else
-      printf "\033[A\r\033[K  ${FG_RED}✖${RESET} Échec de l'installation grpcurl\n"
-      rm -f /tmp/grpcurl.tar.gz
-    fi
+  if [ -n "$PING_CF" ]; then
+    echo -e "  ${FG_GREEN}✔${RESET} DNS Primaire      : 1.1.1.1 (Cloudflare) ⚡ ${FG_CYAN}${PING_CF} ms${RESET}"
   else
-    if [[ -n "${TARI_ADDRESS:-}" ]]; then
-      printf "  ${FG_RED}✖  ERREUR : grpcurl est absent (indispensable pour Tari) et le quota GitHub est atteint.${RESET}\n"
-      exit 1
-    else
-      printf "  ${FG_YELLOW}⚠${RESET} grpcurl absent (quota GitHub), mais Tari est désactivé. On continue...\n"
-    fi
+    echo -e "  ${FG_RED}✖${RESET} DNS Primaire      : 1.1.1.1 inaccessible"
   fi
-fi
 
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Optimisation mémoire & HugePages ──────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🧠  Optimisation mémoire & HugePages${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
+  if [ -n "$PING_V6" ]; then
+    echo -e "  ${FG_GREEN}✔${RESET} DNS IPv6 Primaire : 2606:4700:4700::1111 (Actif) ⚡ ${FG_CYAN}${PING_V6} ms${RESET}"
+  fi
 
-(
-  find /etc/sysctl.d/ -type f -iname '*hugepages*.conf' -exec rm -f {} \;
-  sed -i '/hugetlbfs/d' /etc/fstab
+  if [ -n "$PING_CF2" ]; then
+    echo -e "  ${FG_GREEN}✔${RESET} DNS Secondaire    : 1.0.0.1 (Cloudflare Backup) ⚡ ${FG_CYAN}${PING_CF2} ms${RESET}"
+  else
+    echo -e "  ${FG_YELLOW}⚠${RESET} DNS Secondaire    : 1.0.0.1 inaccessible"
+  fi
 
-  sed -i 's/ transparent_hugepage=never//g' /etc/default/grub
-  sed -i 's/transparent_hugepage=never //g' /etc/default/grub
-  sed -i 's/[[:space:]]\+$//' /etc/default/grub
-) &
-pid=$!
-spinner "$pid" "Nettoyage des anciennes configurations HugePages"
+  if [ -n "$PING_V6_2" ]; then
+    echo -e "  ${FG_GREEN}✔${RESET} DNS IPv6 Backup   : 2606:4700:4700::1001 (Actif) ⚡ ${FG_CYAN}${PING_V6_2} ms${RESET}"
+  fi
 
-TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-TOTAL_CPUS=$(nproc)
-RECOMMENDED_HUGEPAGES=$((((TOTAL_CPUS * 256 * 1024) / 2048) + 1280))
-RECOMMENDED_HUGEPAGES=$((RECOMMENDED_HUGEPAGES / 10 * 10))
+  if grep -q "nameserver 127.0.0.53" /etc/resolv.conf; then
+    echo -e "  ${FG_GREEN}✔${RESET} Résolveur Local   : 127.0.0.53 (Cache Actif)"
+  else
+    echo -e "  ${FG_YELLOW}⚠${RESET} Résolveur Local   : Non utilisé (Pas de cache local)"
+  fi
 
-echo -e "  ${FG_GREEN}✔${RESET} RAM détectée      : $((TOTAL_RAM_KB / 1024)) MiB"
-echo -e "  ${FG_GREEN}✔${RESET} Threads CPU       : ${TOTAL_CPUS}"
-echo -e "  ${FG_GREEN}✔${RESET} HugePages Cible   : ${RECOMMENDED_HUGEPAGES} pages"
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Optimisation mémoire & HugePages ──────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🧠  Optimisation mémoire & HugePages${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
 
-CURRENT_HUGEPAGES=$(sysctl -n vm.nr_hugepages 2>/dev/null || echo 0)
-if [ "$CURRENT_HUGEPAGES" -ne "$RECOMMENDED_HUGEPAGES" ]; then
-  echo "vm.nr_hugepages=$RECOMMENDED_HUGEPAGES" >/etc/sysctl.d/90-hugepages.conf
-  sysctl -w vm.nr_hugepages=$RECOMMENDED_HUGEPAGES >/dev/null
-fi
+  (
+    find /etc/sysctl.d/ -type f -iname '*hugepages*.conf' -exec rm -f {} \;
+    sed -i '/hugetlbfs/d' /etc/fstab
 
-(
-  echo never >/sys/kernel/mm/transparent_hugepage/enabled
-  echo never >/sys/kernel/mm/transparent_hugepage/defrag
+    sed -i 's/ transparent_hugepage=never//g' /etc/default/grub
+    sed -i 's/transparent_hugepage=never //g' /etc/default/grub
+    sed -i 's/[[:space:]]\+$//' /etc/default/grub
+  ) &
+  pid=$!
+  spinner "$pid" "Nettoyage des anciennes configurations HugePages"
 
-  THP_UNIT_FILE="/etc/systemd/system/disable-thp.service"
-  if [ ! -f "$THP_UNIT_FILE" ]; then
-    cat <<EOF >"$THP_UNIT_FILE"
+  TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+  TOTAL_CPUS=$(nproc)
+  RECOMMENDED_HUGEPAGES=$((((TOTAL_CPUS * 256 * 1024) / 2048) + 1280))
+  RECOMMENDED_HUGEPAGES=$((RECOMMENDED_HUGEPAGES / 10 * 10))
+
+  echo -e "  ${FG_GREEN}✔${RESET} RAM détectée      : $((TOTAL_RAM_KB / 1024)) MiB"
+  echo -e "  ${FG_GREEN}✔${RESET} Threads CPU       : ${TOTAL_CPUS}"
+  echo -e "  ${FG_GREEN}✔${RESET} HugePages Cible   : ${RECOMMENDED_HUGEPAGES} pages"
+
+  CURRENT_HUGEPAGES=$(sysctl -n vm.nr_hugepages 2> /dev/null || echo 0)
+  if [ "$CURRENT_HUGEPAGES" -ne "$RECOMMENDED_HUGEPAGES" ]; then
+    echo "vm.nr_hugepages=$RECOMMENDED_HUGEPAGES" > /etc/sysctl.d/90-hugepages.conf
+    sysctl -w vm.nr_hugepages=$RECOMMENDED_HUGEPAGES > /dev/null
+  fi
+
+  (
+    echo never > /sys/kernel/mm/transparent_hugepage/enabled
+    echo never > /sys/kernel/mm/transparent_hugepage/defrag
+
+    THP_UNIT_FILE="/etc/systemd/system/disable-thp.service"
+    if [ ! -f "$THP_UNIT_FILE" ]; then
+      cat << EOF > "$THP_UNIT_FILE"
 [Unit]
 Description=Disable Transparent Huge Pages (THP)
 After=sysinit.target local-fs.target
@@ -1233,245 +1445,309 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target
 EOF
-    systemctl daemon-reexec
-    systemctl enable --now disable-thp.service
-  fi
-) &
-pid=$!
-spinner "$pid" "Activation Service THP (systemd)"
-
-UPDATE_GRUB_HP=false
-if ! grep -q 'transparent_hugepage=never' "$GRUB_FILE"; then
-  sed -i 's/^GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="transparent_hugepage=never /' "$GRUB_FILE"
-  sed -i 's/GRUB_CMDLINE_LINUX="  /GRUB_CMDLINE_LINUX=" /g' "$GRUB_FILE"
-  UPDATE_GRUB_HP=true
-fi
-
-if $UPDATE_GRUB_HP; then
-  (update-grub >/dev/null 2>&1) &
+      systemctl daemon-reexec
+      systemctl enable --now disable-thp.service
+    fi
+  ) &
   pid=$!
-  spinner "$pid" "Mise à jour GRUB (HugePages)"
-  echo -e "  ${FG_YELLOW}⚠${RESET} Paramètres GRUB   : Modifiés (Seront actifs au redémarrage)"
-else
-  echo -e "  ${FG_GREEN}✔${RESET} Paramètres GRUB   : Déjà configurés"
-fi
+  spinner "$pid" "Activation Service THP (systemd)"
 
-(
-  mkdir -p /dev/hugepages
-  grep -q 'hugetlbfs /dev/hugepages' /etc/fstab || echo "hugetlbfs /dev/hugepages hugetlbfs mode=1770,gid=0 0 0" >>/etc/fstab
-  mountpoint -q /dev/hugepages || mount /dev/hugepages
-
-  if grep -q pdpe1gb /proc/cpuinfo; then
-    mkdir -p /mnt/hugepages_1gb
-    grep -q '/mnt/hugepages_1gb' /etc/fstab || echo "nodev /mnt/hugepages_1gb hugetlbfs pagesize=1G 0 0" >>/etc/fstab
-    mountpoint -q /mnt/hugepages_1gb || mount /mnt/hugepages_1gb
+  UPDATE_GRUB_HP=false
+  if ! grep -q 'transparent_hugepage=never' "$GRUB_FILE"; then
+    sed -i 's/^GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="transparent_hugepage=never /' "$GRUB_FILE"
+    sed -i 's/GRUB_CMDLINE_LINUX="  /GRUB_CMDLINE_LINUX=" /g' "$GRUB_FILE"
+    UPDATE_GRUB_HP=true
   fi
-) &
-pid=$!
-spinner "$pid" "Montage hugetlbfs & 1GB"
 
-ALLOCATED=$(grep HugePages_Total /proc/meminfo | awk '{print $2}')
-if [ "$ALLOCATED" -ge "$RECOMMENDED_HUGEPAGES" ]; then
-  echo -e "  ${FG_GREEN}✔${RESET} Pages Allouées    : ${ALLOCATED} (OK)"
-else
-  echo -e "  ${FG_YELLOW}⚠${RESET} Pages Allouées    : ${ALLOCATED}/${RECOMMENDED_HUGEPAGES} (Incomplet : sera OK au redémarrage)"
-fi
-
-if grep -q pdpe1gb /proc/cpuinfo; then
-  echo -e "  ${FG_GREEN}✔${RESET} Pages 1GiB        : Actif (Supporté)"
-else
-  echo -e "  ${FG_YELLOW}✖${RESET} Pages 1GiB        : Non supporté par ce CPU"
-fi
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Optimisation Réseau : IPv4/IPv6 + Privacy + Performance BBR ───────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🌍  Optimisation Pile Réseau (IPv4 & IPv6 + BBR)${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-cat <<EOF >/etc/sysctl.d/99-mining-network.conf
-net.ipv6.conf.all.disable_ipv6 = 0
-net.ipv6.conf.default.disable_ipv6 = 0
-net.ipv6.conf.lo.disable_ipv6 = 0
-
-net.ipv6.conf.all.use_tempaddr = 2
-net.ipv6.conf.default.use_tempaddr = 2
-
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-
-net.ipv4.tcp_fastopen = 3
-net.core.somaxconn = 8192
-net.ipv4.tcp_max_syn_backlog = 8192
-net.ipv4.tcp_tw_reuse = 1
-EOF
-
-(
-  rm -f /etc/sysctl.d/*ipv6*.conf 2>/dev/null
-  modprobe tcp_bbr 2>/dev/null
-  sysctl --system >/dev/null 2>&1
-) &
-pid=$!
-spinner "$pid" "Optimisation TCP/IP (BBR + IPv6 Privacy)"
-
-UPDATE_GRUB=false
-GRUB_FILE="/etc/default/grub"
-
-if grep -q 'ipv6.disable=1' "$GRUB_FILE"; then
-  sed -i 's/ ipv6.disable=1//g' "$GRUB_FILE"
-  sed -i 's/ipv6.disable=1 //g' "$GRUB_FILE"
-  sed -i 's/ipv6.disable=1//g' "$GRUB_FILE"
-
-  sed -i 's/GRUB_CMDLINE_LINUX="  /GRUB_CMDLINE_LINUX=" /g' "$GRUB_FILE"
-
-  UPDATE_GRUB=true
-fi
-
-if $UPDATE_GRUB; then
-  (update-grub >/dev/null 2>&1) &
-  pid=$!
-  spinner "$pid" "Déblocage IPv6 dans GRUB (Reboot requis pour appliquer)"
-else
-  echo -e "  ${FG_GREEN}✔${RESET} GRUB              : IPv6 déjà autorisé au démarrage"
-fi
-
-IPV6_NOW=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || echo 1)
-CONGESTION=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo "unknown")
-
-if [ "$IPV6_NOW" -eq "0" ]; then
-  echo -e "  ${FG_GREEN}✔${RESET} Protocole IPv6    : ACTIF (Extensions Privacy activées)"
-else
-  echo -e "  ${FG_YELLOW}⚠${RESET} Protocole IPv6    : Inactif (Sera actif au redémarrage)"
-fi
-
-if [[ "$CONGESTION" == "bbr" ]]; then
-  echo -e "  ${FG_GREEN}✔${RESET} Performance TCP   : BBR (Optimisé)"
-else
-  echo -e "  ${FG_YELLOW}⚠${RESET} Performance TCP   : $CONGESTION (Standard)"
-fi
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Gestion des journaux systemd ──────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🧹  Configuration de la rétention des logs systemd${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-JOURNAL_CONF="/etc/systemd/journald.conf"
-
-cp "$JOURNAL_CONF" "${JOURNAL_CONF}.bak.$(date +%F-%H%M)" 2>/dev/null
-
-(
-  sed -i 's|^#\?MaxRetentionSec=.*|MaxRetentionSec=24h|' "$JOURNAL_CONF"
-  systemctl restart systemd-journald
-  journalctl --vacuum-time=24h &>/dev/null
-) &
-spinner $! "Application de la rétention journald"
-
-printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Rétention des logs fixée à 24h et purge effectuée\n"
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Pare-feu (UFW) — vérification / synchronisation ───────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🛡️   Vérification de la configuration UFW${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-declare -a WANT_RULES
-if [[ "${SSH_PORT:-0}" -gt 0 ]]; then
-  WANT_RULES+=("allow ${SSH_PORT}/tcp")
-fi
-
-WANT_RULES+=("allow 18080/tcp")
-WANT_RULES+=("deny 18081/tcp")
-WANT_RULES+=("deny 18083/tcp")
-
-if [[ -n "$TARI_ADDRESS" ]]; then
-  WANT_RULES+=("deny ${TARI_GRPC_PORT}/tcp")
-  WANT_RULES+=("allow ${TARI_P2P_PORT}/tcp")
-fi
-
-if [[ -n "$STRATUM_PORT" ]]; then
-  WANT_RULES+=("deny ${STRATUM_PORT}/tcp")
-fi
-
-WANT_RULES+=("deny 18888/tcp")
-
-case "$MINING_MODE" in
-  pool-nano)
-    WANT_RULES+=("allow 37890/tcp")
-    WANT_RULES+=("deny 37888/tcp")
-    WANT_RULES+=("deny 37889/tcp")
-    ;;
-  pool-mini)
-    WANT_RULES+=("deny 37890/tcp")
-    WANT_RULES+=("allow 37888/tcp")
-    WANT_RULES+=("deny 37889/tcp")
-    ;;
-  pool-full)
-    WANT_RULES+=("deny 37890/tcp")
-    WANT_RULES+=("deny 37888/tcp")
-    WANT_RULES+=("allow 37889/tcp")
-    ;;
-  *)
-    WANT_RULES+=("deny 37890/tcp")
-    WANT_RULES+=("deny 37888/tcp")
-    WANT_RULES+=("deny 37889/tcp")
-    ;;
-esac
-
-CURRENT_RULES=$(ufw show added 2>/dev/null |
-  grep -E '^ufw (allow|deny)' |
-  grep -v ' (v6)' |
-  awk '{print $2, $3}' |
-  sort -u || true)
-
-EXPECTED_RULES=$(printf "%s\n" "${WANT_RULES[@]}" | sort -u)
-
-if [[ "$CURRENT_RULES" != "$EXPECTED_RULES" ]]; then
-  printf "  ${FG_RED}✖${RESET} UFW ≠ modèle — reconfiguration nécessaire\n"
+  if $UPDATE_GRUB_HP; then
+    (update-grub > /dev/null 2>&1) &
+    pid=$!
+    spinner "$pid" "Mise à jour GRUB (HugePages)"
+    echo -e "  ${FG_YELLOW}⚠${RESET} Paramètres GRUB   : Modifiés (Seront actifs au redémarrage)"
+  else
+    echo -e "  ${FG_GREEN}✔${RESET} Paramètres GRUB   : Déjà configurés"
+  fi
 
   (
-    ufw --force reset >/dev/null
-    ufw default deny incoming >/dev/null
-    ufw default allow outgoing >/dev/null
+    mkdir -p /dev/hugepages
+    grep -q 'hugetlbfs /dev/hugepages' /etc/fstab || echo "hugetlbfs /dev/hugepages hugetlbfs mode=1770,gid=0 0 0" >> /etc/fstab
+    mountpoint -q /dev/hugepages || mount /dev/hugepages
 
-    for rule in "${WANT_RULES[@]}"; do
-      action=$(awk '{print $1}' <<<"$rule")
-      port_proto=$(awk '{print $2}' <<<"$rule")
-      port="${port_proto%%/*}"
-      proto="${port_proto##*/}"
-      ufw "$action" proto "$proto" to any port "$port" >/dev/null
-    done
-
-    ufw --force enable >/dev/null
-    systemctl enable ufw >/dev/null 2>&1
+    if grep -q pdpe1gb /proc/cpuinfo; then
+      mkdir -p /mnt/hugepages_1gb
+      grep -q '/mnt/hugepages_1gb' /etc/fstab || echo "nodev /mnt/hugepages_1gb hugetlbfs pagesize=1G 0 0" >> /etc/fstab
+      mountpoint -q /mnt/hugepages_1gb || mount /mnt/hugepages_1gb
+    fi
   ) &
-  spinner $! "Réinitialisation UFW complète"
+  pid=$!
+  spinner "$pid" "Montage hugetlbfs & 1GB"
 
-  printf "  ${FG_GREEN}✔${RESET} UFW synchronisé avec le modèle\n"
-else
-  printf "  ${FG_GREEN}✔${RESET} UFW déjà conforme\n"
-fi
+  ALLOCATED=$(grep HugePages_Total /proc/meminfo | awk '{print $2}')
+  if [ "$ALLOCATED" -ge "$RECOMMENDED_HUGEPAGES" ]; then
+    echo -e "  ${FG_GREEN}✔${RESET} Pages Allouées    : ${ALLOCATED} (OK)"
+  else
+    echo -e "  ${FG_YELLOW}⚠${RESET} Pages Allouées    : ${ALLOCATED}/${RECOMMENDED_HUGEPAGES} (Incomplet : sera OK au redémarrage)"
+  fi
 
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Fail2Ban ──────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🚔  Sécurisation brute-force (Fail2Ban)${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
+  if grep -q pdpe1gb /proc/cpuinfo; then
+    echo -e "  ${FG_GREEN}✔${RESET} Pages 1GiB        : Actif (Supporté)"
+  else
+    echo -e "  ${FG_YELLOW}✖${RESET} Pages 1GiB        : Non supporté par ce CPU"
+  fi
 
-mkdir -p /etc/fail2ban
-cat <<EOF >/etc/fail2ban/jail.local
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Dépendances ───────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🔧  Pré-requis système${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  if id -u worker &> /dev/null; then
+    printf "  ${FG_GREEN}✔${RESET} utilisateur « worker » déjà présent\n"
+  else
+    (
+      adduser --disabled-password --gecos '' worker &> /dev/null
+    ) &
+    spinner $! "Création de l'utilisateur « worker »"
+    printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} utilisateur « worker » créé\n"
+  fi
+
+  if timedatectl status 2> /dev/null | grep -q "synchronized: yes"; then
+    printf "  ${FG_GREEN}✔${RESET} Horloge système synchronisée\n"
+  else
+    (
+      timedatectl set-ntp true 2> /dev/null
+      systemctl restart systemd-timesyncd 2> /dev/null
+
+      for i in {1..20}; do
+        if timedatectl status 2> /dev/null | grep -q "synchronized: yes"; then
+          break
+        fi
+        sleep 0.5
+      done
+    ) &
+    spinner $! "Synchronisation de l'horloge système (NTP)"
+
+    if timedatectl status 2> /dev/null | grep -q "synchronized: yes"; then
+      printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Horloge système synchronisée\n"
+    else
+      printf "\033[A\r\033[K  ${FG_YELLOW}⚠${RESET} Horloge non synchronisée (vérifiez la connexion ou le service NTP)\n"
+    fi
+  fi
+
+  deps=(curl jq ufw gnupg tar unzip bzip2 netcat-openbsd iproute2 ca-certificates fail2ban tor wget qrencode)
+
+  (
+    DEBIAN_FRONTEND=noninteractive \
+      apt-get update -qq -o=Dpkg::Use-Pty=0 -o=APT::Color=0 &> /dev/null
+  ) &
+  spinner $! "Mise à jour de l'index APT"
+  printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Mise à jour de l'index APT\n"
+
+  APT_OPTS=(-y -qq --no-install-recommends
+    -o=Dpkg::Use-Pty=0 -o=Dpkg::Progress-Fancy=0 -o=APT::Color=0)
+
+  for pkg in "${deps[@]}"; do
+    INSTALLED=$(dpkg -s "$pkg" 2> /dev/null | grep "Status: install ok installed" || true)
+    OLD_VER=$(dpkg -s "$pkg" 2> /dev/null | grep -E '^Version:' | awk '{print $2}' || true)
+
+    (
+      NEEDRESTART_MODE=a \
+        DEBIAN_FRONTEND=noninteractive \
+        apt-get install "${APT_OPTS[@]}" "$pkg" &> /dev/null ||
+        (apt-get update -qq &> /dev/null && apt-get install "${APT_OPTS[@]}" "$pkg" &> /dev/null)
+    ) &
+    spinner $! "Vérification/Mise à jour de $pkg"
+
+    NEW_VER=$(dpkg -s "$pkg" 2> /dev/null | grep -E '^Version:' | awk '{print $2}' || true)
+
+    if [[ -z "$INSTALLED" ]]; then
+      if [[ -n "$NEW_VER" ]]; then
+        printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} %s installé (v%s)\n" "$pkg" "$NEW_VER"
+      else
+        printf "\033[A\r\033[K  ${FG_RED}✖${RESET} Erreur : %s n'a pas pu être installé\n" "$pkg"
+      fi
+    elif [[ "$OLD_VER" != "$NEW_VER" ]]; then
+      printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} %s mis à jour (v%s → v%s)\n" "$pkg" "$OLD_VER" "$NEW_VER"
+    else
+      printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} %s est à jour (v%s)\n" "$pkg" "$NEW_VER"
+    fi
+  done
+
+  fetch_latest_version "grpcurl" "fullstorydev/grpcurl" GRPCURL_VERSION
+
+  if command -v grpcurl &> /dev/null; then
+    INSTALLED_GRPCURL=$(grpcurl -version 2>&1 | awk '{print $NF}' | tr -d '\n\r')
+
+    if [[ -n "$GRPCURL_VERSION" && "$GRPCURL_VERSION" != "v0.0.0" && "$INSTALLED_GRPCURL" != "$GRPCURL_VERSION" ]]; then
+      printf "  ${FG_YELLOW}⇧${RESET} grpcurl    : ${INSTALLED_GRPCURL} → ${GRPCURL_VERSION}\n"
+
+      grpcurl_ver="${GRPCURL_VERSION#v}"
+      grpcurl_url="https://github.com/fullstorydev/grpcurl/releases/download/${GRPCURL_VERSION}/grpcurl_${grpcurl_ver}_linux_x86_64.tar.gz"
+
+      if wget --timeout=10 -q "$grpcurl_url" -O /tmp/grpcurl.tar.gz 2> /dev/null && [[ -s /tmp/grpcurl.tar.gz ]]; then
+        (
+          tar -xzf /tmp/grpcurl.tar.gz -C /usr/local/bin grpcurl 2> /dev/null
+          chmod +x /usr/local/bin/grpcurl
+          rm -f /tmp/grpcurl.tar.gz
+        ) &
+        spinner $! "Mise à jour grpcurl"
+        printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} grpcurl mis à jour vers ${GRPCURL_VERSION}\n"
+      else
+        printf "\033[A\r\033[K  ${FG_RED}✖${RESET} Téléchargement grpcurl échoué (quota ou réseau)\n"
+        rm -f /tmp/grpcurl.tar.gz
+      fi
+    else
+      printf "  ${FG_GREEN}✔${RESET} grpcurl ${INSTALLED_GRPCURL} déjà prêt\n"
+    fi
+  else
+    if [[ -n "$GRPCURL_VERSION" && "$GRPCURL_VERSION" != "v0.0.0" ]]; then
+      grpcurl_ver="${GRPCURL_VERSION#v}"
+      grpcurl_url="https://github.com/fullstorydev/grpcurl/releases/download/${GRPCURL_VERSION}/grpcurl_${grpcurl_ver}_linux_x86_64.tar.gz"
+
+      if wget --timeout=10 -q "$grpcurl_url" -O /tmp/grpcurl.tar.gz 2> /dev/null && [[ -s /tmp/grpcurl.tar.gz ]]; then
+        (
+          tar -xzf /tmp/grpcurl.tar.gz -C /usr/local/bin grpcurl 2> /dev/null
+          chmod +x /usr/local/bin/grpcurl
+          rm -f /tmp/grpcurl.tar.gz
+        ) &
+        spinner $! "Installation grpcurl ${GRPCURL_VERSION}"
+        printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} grpcurl ${GRPCURL_VERSION} installé\n"
+      else
+        printf "\033[A\r\033[K  ${FG_RED}✖${RESET} Échec de l'installation grpcurl\n"
+        rm -f /tmp/grpcurl.tar.gz
+      fi
+    else
+      if [[ -n "${TARI_ADDRESS:-}" ]]; then
+        printf "  ${FG_RED}✖  ERREUR : grpcurl est absent (indispensable pour Tari) et le quota GitHub est atteint.${RESET}\n"
+        exit 1
+      else
+        printf "  ${FG_YELLOW}⚠${RESET} grpcurl absent (quota GitHub), mais Tari est désactivé. On continue...\n"
+      fi
+    fi
+  fi
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Gestion des journaux systemd ──────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🧹  Configuration de la rétention des logs systemd${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  JOURNAL_CONF="/etc/systemd/journald.conf"
+
+  cp "$JOURNAL_CONF" "${JOURNAL_CONF}.bak.$(date +%F-%H%M)" 2> /dev/null
+
+  (
+    sed -i 's|^#\?MaxRetentionSec=.*|MaxRetentionSec=24h|' "$JOURNAL_CONF"
+    systemctl restart systemd-journald
+    journalctl --vacuum-time=24h &> /dev/null
+  ) &
+  spinner $! "Application de la rétention journald"
+
+  printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Rétention des logs fixée à 24h et purge effectuée\n"
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Pare-feu (UFW) — vérification / synchronisation ───────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🛡️   Vérification de la configuration UFW${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  declare -a WANT_RULES
+  if [[ "${SSH_PORT:-0}" -gt 0 ]]; then
+    WANT_RULES+=("allow ${SSH_PORT}/tcp")
+  fi
+
+  WANT_RULES+=("allow 18080/tcp")
+  WANT_RULES+=("deny 18081/tcp")
+  WANT_RULES+=("deny 18083/tcp")
+
+  if [[ -n "$TARI_ADDRESS" ]]; then
+    WANT_RULES+=("deny ${TARI_GRPC_PORT}/tcp")
+    WANT_RULES+=("allow ${TARI_P2P_PORT}/tcp")
+  fi
+
+  if [[ -n "$STRATUM_PORT" ]]; then
+    WANT_RULES+=("deny ${STRATUM_PORT}/tcp")
+  fi
+
+  WANT_RULES+=("deny 18888/tcp")
+
+  case "$MINING_MODE" in
+    pool-nano)
+      WANT_RULES+=("allow 37890/tcp")
+      WANT_RULES+=("deny 37888/tcp")
+      WANT_RULES+=("deny 37889/tcp")
+      ;;
+    pool-mini)
+      WANT_RULES+=("deny 37890/tcp")
+      WANT_RULES+=("allow 37888/tcp")
+      WANT_RULES+=("deny 37889/tcp")
+      ;;
+    pool-full)
+      WANT_RULES+=("deny 37890/tcp")
+      WANT_RULES+=("deny 37888/tcp")
+      WANT_RULES+=("allow 37889/tcp")
+      ;;
+    *)
+      WANT_RULES+=("deny 37890/tcp")
+      WANT_RULES+=("deny 37888/tcp")
+      WANT_RULES+=("deny 37889/tcp")
+      ;;
+  esac
+
+  CURRENT_RULES=$(ufw show added 2> /dev/null |
+    grep -E '^ufw (allow|deny)' |
+    grep -v ' (v6)' |
+    awk '{print $2, $3}' |
+    sort -u || true)
+
+  EXPECTED_RULES=$(printf "%s\n" "${WANT_RULES[@]}" | sort -u)
+
+  if [[ "$CURRENT_RULES" != "$EXPECTED_RULES" ]]; then
+    printf "  ${FG_RED}✖${RESET} UFW ≠ modèle — reconfiguration nécessaire\n"
+
+    (
+      ufw --force reset > /dev/null
+      ufw default deny incoming > /dev/null
+      ufw default allow outgoing > /dev/null
+
+      for rule in "${WANT_RULES[@]}"; do
+        action=$(awk '{print $1}' <<< "$rule")
+        port_proto=$(awk '{print $2}' <<< "$rule")
+        port="${port_proto%%/*}"
+        proto="${port_proto##*/}"
+        ufw "$action" proto "$proto" to any port "$port" > /dev/null
+      done
+
+      ufw --force enable > /dev/null
+      systemctl enable ufw > /dev/null 2>&1
+    ) &
+    spinner $! "Réinitialisation UFW complète"
+
+    printf "  ${FG_GREEN}✔${RESET} UFW synchronisé avec le modèle\n"
+  else
+    printf "  ${FG_GREEN}✔${RESET} UFW déjà conforme\n"
+  fi
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Fail2Ban ──────────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🚔  Sécurisation brute-force (Fail2Ban)${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  mkdir -p /etc/fail2ban
+  cat << EOF > /etc/fail2ban/jail.local
 [DEFAULT]
 bantime = 1h
 findtime = 10m
@@ -1483,108 +1759,108 @@ banaction = iptables-multiport
 enabled = true
 EOF
 
-printf "  ${FG_GREEN}✔${RESET} Configuration de Fail2Ban\n"
+  printf "  ${FG_GREEN}✔${RESET} Configuration de Fail2Ban\n"
 
-(
-  systemctl enable fail2ban >/dev/null 2>&1
-  systemctl restart fail2ban
-) &
-spinner $! "Démarrage du service Fail2Ban"
-
-printf "  ${FG_GREEN}✔${RESET} Protection brute-force activée (SSH)\n"
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Configuration TOR contourner la censure) ──────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🧅  Configuration Tor (contournement de la censure)${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-if systemctl is-active --quiet tor; then
-  printf "  ${FG_GREEN}✔${RESET} Service Tor déjà actif\n"
-else
   (
-    systemctl enable tor >/dev/null 2>&1
-    systemctl start tor >/dev/null 2>&1
-    sleep 2
+    systemctl enable fail2ban > /dev/null 2>&1
+    systemctl restart fail2ban
   ) &
-  spinner $! "Activation du service Tor"
+  spinner $! "Démarrage du service Fail2Ban"
+
+  printf "  ${FG_GREEN}✔${RESET} Protection brute-force activée (SSH)\n"
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Configuration TOR contourner la censure) ──────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🧅  Configuration Tor (contournement de la censure)${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
 
   if systemctl is-active --quiet tor; then
-    printf "  ${FG_GREEN}✔${RESET} Service Tor démarré avec succès\n"
+    printf "  ${FG_GREEN}✔${RESET} Service Tor déjà actif\n"
   else
-    printf "  ${FG_RED}✖${RESET} Échec du démarrage de Tor\n"
-    exit 1
-  fi
-fi
+    (
+      systemctl enable tor > /dev/null 2>&1
+      systemctl start tor > /dev/null 2>&1
+      sleep 2
+    ) &
+    spinner $! "Activation du service Tor"
 
-TOR_PROXY="127.0.0.1:9050"
-
-if timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/9050" 2>/dev/null; then
-  printf "  ${FG_GREEN}✔${RESET} Proxy SOCKS5 Tor opérationnel ($TOR_PROXY)\n"
-else
-  printf "  ${FG_RED}✖${RESET} Proxy SOCKS5 Tor inaccessible\n"
-  exit 1
-fi
-
-printf "  ${FG_GREEN}✔${RESET} TOR configuré pour la découverte de peers\n"
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Monero ────────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🏗️   Déploiement du nœud Monero${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-INSTALLED_MONERO=""
-
-if [[ "$MINING_MODE" == "moneroocean" ]]; then
-  printf "\n${FG_YELLOW}${BOLD}  ⏭ Le nœud Monero n'est pas utile en mode %s.${RESET}\n" "$mining_label"
-  systemctl disable monerod.service 2>/dev/null || true
-  systemctl stop monerod.service 2>/dev/null || true
-else
-
-  RESTART_MONERO=0
-  RESTART_MONEROD=0
-
-  fetch_latest_version "Monero" "monero-project/monero" MONERO_VERSION
-
-  INSTALLED_MONERO=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "monero-*" |
-    sed -E 's/.*monero-//' | sort -Vr | head -n1 || true)
-
-  show_component "Monero" "$INSTALLED_MONERO" "$MONERO_VERSION"
-
-  if [[ -z "$INSTALLED_MONERO" && (-z "$MONERO_VERSION" || "$MONERO_VERSION" == "v0.0.0") ]]; then
-    printf "  ${FG_RED}✖${RESET} Aucun binaire Monero installé, et impossible de récupérer une version distante.\n"
-    printf "     ${FG_RED}Arrêt du script.${RESET}\n"
-    exit 1
-  fi
-
-  if [[ "$MONERO_VERSION" == "v0.0.0" || -z "$MONERO_VERSION" ]]; then
-    printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
-    MONERO_DIR="$WORKER_HOME/monero-$INSTALLED_MONERO"
-  else
-    if [[ "$INSTALLED_MONERO" != "$MONERO_VERSION" ]]; then
-      download_and_extract \
-        "https://downloads.getmonero.org/cli/monero-linux-x64-${MONERO_VERSION}.tar.bz2" \
-        "$WORKER_HOME" "$MONERO_VERSION"
-      rm -rf "$WORKER_HOME/monero-${INSTALLED_MONERO}" 2>/dev/null || true
-      mv "$WORKER_HOME"/monero*-"$MONERO_VERSION" "$WORKER_HOME/monero-$MONERO_VERSION"
-      INSTALLED_MONERO="$MONERO_VERSION"
-      chown -R worker:worker "$WORKER_HOME/monero-$MONERO_VERSION"
-      RESTART_MONERO=1
-      MONERO_DIR="$WORKER_HOME/monero-$MONERO_VERSION"
+    if systemctl is-active --quiet tor; then
+      printf "  ${FG_GREEN}✔${RESET} Service Tor démarré avec succès\n"
     else
-      MONERO_DIR="$WORKER_HOME/monero-$INSTALLED_MONERO"
+      printf "  ${FG_RED}✖${RESET} Échec du démarrage de Tor\n"
+      exit 1
     fi
   fi
 
-  UNIT_MONEROD=$(
-    cat <<EOF
+  TOR_PROXY="127.0.0.1:9050"
+
+  if timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/9050" 2> /dev/null; then
+    printf "  ${FG_GREEN}✔${RESET} Proxy SOCKS5 Tor opérationnel ($TOR_PROXY)\n"
+  else
+    printf "  ${FG_RED}✖${RESET} Proxy SOCKS5 Tor inaccessible\n"
+    exit 1
+  fi
+
+  printf "  ${FG_GREEN}✔${RESET} TOR configuré pour la découverte de peers\n"
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Monero ────────────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🏗️   Déploiement du nœud Monero${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  INSTALLED_MONERO=""
+
+  if [[ "$MINING_MODE" == "moneroocean" ]]; then
+    printf "\n${FG_YELLOW}${BOLD}  ⏭ Le nœud Monero n'est pas utile en mode %s.${RESET}\n" "$mining_label"
+    systemctl disable monerod.service 2> /dev/null || true
+    systemctl stop monerod.service 2> /dev/null || true
+  else
+
+    RESTART_MONERO=0
+    RESTART_MONEROD=0
+
+    fetch_latest_version "Monero" "monero-project/monero" MONERO_VERSION
+
+    INSTALLED_MONERO=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "monero-*" |
+      sed -E 's/.*monero-//' | sort -Vr | head -n1 || true)
+
+    show_component "Monero" "$INSTALLED_MONERO" "$MONERO_VERSION"
+
+    if [[ -z "$INSTALLED_MONERO" && (-z "$MONERO_VERSION" || "$MONERO_VERSION" == "v0.0.0") ]]; then
+      printf "  ${FG_RED}✖${RESET} Aucun binaire Monero installé, et impossible de récupérer une version distante.\n"
+      printf "     ${FG_RED}Arrêt du script.${RESET}\n"
+      exit 1
+    fi
+
+    if [[ "$MONERO_VERSION" == "v0.0.0" || -z "$MONERO_VERSION" ]]; then
+      printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
+      MONERO_DIR="$WORKER_HOME/monero-$INSTALLED_MONERO"
+    else
+      if [[ "$INSTALLED_MONERO" != "$MONERO_VERSION" ]]; then
+        download_and_extract \
+          "https://downloads.getmonero.org/cli/monero-linux-x64-${MONERO_VERSION}.tar.bz2" \
+          "$WORKER_HOME" "$MONERO_VERSION"
+        rm -rf "$WORKER_HOME/monero-${INSTALLED_MONERO}" 2> /dev/null || true
+        mv "$WORKER_HOME"/monero*-"$MONERO_VERSION" "$WORKER_HOME/monero-$MONERO_VERSION"
+        INSTALLED_MONERO="$MONERO_VERSION"
+        chown -R worker:worker "$WORKER_HOME/monero-$MONERO_VERSION"
+        RESTART_MONERO=1
+        MONERO_DIR="$WORKER_HOME/monero-$MONERO_VERSION"
+      else
+        MONERO_DIR="$WORKER_HOME/monero-$INSTALLED_MONERO"
+      fi
+    fi
+
+    UNIT_MONEROD=$(
+      cat << EOF
 [Unit]
 Description=Monero Daemon
 After=network-online.target tor.service
@@ -1592,7 +1868,6 @@ Wants=network-online.target tor.service
 
 [Service]
 User=worker
-Environment=DNS_PUBLIC=tcp://8.8.8.8
 WorkingDirectory=$MONERO_DIR
 ExecStartPre=/bin/bash -c '[ -d "$WORKER_HOME/.bitmonero" ] || mkdir -p "$WORKER_HOME/.bitmonero"'
 ExecStart=$MONERO_DIR/monerod \
@@ -1603,9 +1878,14 @@ ExecStart=$MONERO_DIR/monerod \
   --p2p-bind-port=18080 \
   --tx-proxy=tor,127.0.0.1:9050 \
   --seed-node=moneroxmrxw44lku6qniyarpwgzpphvqpzpvvp3kj5tl3ksxopkbfwid.onion:18080 \
-  --add-priority-node=195.201.115.166:18080 \
-  --add-priority-node=116.203.250.205:18080 \
-  --add-priority-node=88.198.199.23:18080 \
+  --add-priority-node=p2pmd.xmrvsbeast.com:18080 \
+  --add-priority-node=nodes.hashvault.pro:18080 \
+  --add-priority-node=176.9.0.187:18080 \
+  --add-priority-node=162.213.25.25:18080 \
+  --add-priority-node=88.198.163.7:18080 \
+  --add-priority-node=116.203.111.109:18080 \
+  --add-priority-node=144.76.202.167:18080 \
+  --add-priority-node=178.128.192.138:18080 \
   --in-peers=64 \
   --out-peers=64 \
   --prep-blocks-threads=$(nproc) \
@@ -1620,6 +1900,9 @@ KillSignal=SIGINT
 TimeoutStopSec=300
 Restart=always
 RestartSec=10
+Nice=-5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=1
 ProtectSystem=full
 NoNewPrivileges=true
 LimitNOFILE=65536
@@ -1628,226 +1911,250 @@ OOMScoreAdjust=-1000
 [Install]
 WantedBy=multi-user.target
 EOF
-  )
+    )
 
-  UNIT_HASH_FILE="/etc/.last-monerod-unit"
-  NEW_HASH=$(echo "$UNIT_MONEROD" | sha256sum | awk '{print $1}')
-  OLD_HASH=$(cat "$UNIT_HASH_FILE" 2>/dev/null || echo "")
+    UNIT_HASH_FILE="/etc/.last-monerod-unit"
+    NEW_HASH=$(echo "$UNIT_MONEROD" | sha256sum | awk '{print $1}')
+    OLD_HASH=$(cat "$UNIT_HASH_FILE" 2> /dev/null || echo "")
 
-  if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
-    echo "$NEW_HASH" >"$UNIT_HASH_FILE"
-    RESTART_MONEROD=1
-    printf "  ${FG_YELLOW}↻${RESET} Changement de configuration monerod – redémarrage\n"
-  fi
-
-  ensure_unit monerod.service "$UNIT_MONEROD"
-
-  if ((RESTART_MONEROD)); then
-    systemctl daemon-reload
-    systemctl restart monerod
-    (sleep 15) &
-    spinner $! "Application de la config Monero"
-  fi
-
-  if ((RESTART_MONERO)); then
-    systemctl daemon-reexec
-  fi
-
-  ensure_running_enabled monerod.service
-
-  if wait_service_port monerod.service 18080 120 0 "Port P2P (18080) accessible"; then
-    :
-  else
-    printf "  ${FG_RED}✖${RESET} Échec critique : Port P2P 18080 fermé (Pas de synchro possible)\n"
-    exit 1
-  fi
-
-  if wait_service_port monerod.service 18081 120 0 "Port RPC (18081) accessible"; then
-    :
-  else
-    printf "  ${FG_RED}✖${RESET} Échec critique : Port RPC 18081 fermé (API injoignable)\n"
-    exit 1
-  fi
-
-  if wait_service_port monerod.service 18083 120 0 "Port ZMQ (18083) accessible"; then
-    :
-  else
-    printf "  ${FG_RED}✖${RESET} Échec critique : Port ZMQ 18083 fermé (P2Pool ne marchera pas)\n"
-    exit 1
-  fi
-
-  printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
-  API_READY=0
-  for i in {1..30}; do
-    if curl -s -f -m 2 -H 'Content-Type: application/json' http://127.0.0.1:18081/get_info >/dev/null 2>&1; then
-      API_READY=1
-      break
+    if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
+      echo "$NEW_HASH" > "$UNIT_HASH_FILE"
+      RESTART_MONEROD=1
+      printf "  ${FG_YELLOW}↻${RESET} Changement de configuration monerod – redémarrage\n"
     fi
-    sleep 1
-  done
-  printf "\r\033[K"
 
-  if ((API_READY)); then
-    printf "  ${FG_GREEN}✔${RESET} API Monero (RPC) répond\n"
-  else
-    printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API Monero (RPC) ne répond pas.\n"
-    exit 1
-  fi
+    ensure_unit monerod.service "$UNIT_MONEROD"
 
-  wait_monero_ready() {
-    local delay=1.15
-    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local idx=0
+    if ((RESTART_MONEROD)); then
+      systemctl daemon-reload
+      systemctl restart monerod
+      (sleep 15) &
+      spinner $! "Application de la config Monero"
+    fi
 
-    local last_height=0
-    local last_change_ts=$(date +%s)
-    local stall_timeout=1200
-    local restart_count=0
+    if ((RESTART_MONERO)); then
+      systemctl daemon-reexec
+    fi
 
-    while true; do
-      local resp=$(curl -s -m 5 -H 'Content-Type: application/json' \
-        http://127.0.0.1:18081/get_info 2>/dev/null)
+    ensure_running_enabled monerod.service
 
-      if [[ -z "$resp" ]]; then
-        printf "\r\033[K  ${FG_YELLOW}%s${RESET} Monero : Initialisation de l'API...   " "${spinstr:$idx:1}"
-        idx=$(((idx + 1) % ${#spinstr}))
-        sleep "$delay"
-        continue
-      fi
-
-      local is_synced=$(echo "$resp" | jq -r '.synchronized // false')
-      local height=$(echo "$resp" | jq -r '.height // 0')
-      local target=$(echo "$resp" | jq -r '.target_height // 0')
-
-      local in_peers=$(echo "$resp" | jq -r '.incoming_connections_count // 0')
-      local out_peers=$(echo "$resp" | jq -r '.outgoing_connections_count // 0')
-      local peers=$((in_peers + out_peers))
-
-      ((target < height)) && target=$height
-      ((target == 0)) && target=$height
-
-      local lag=$((target - height))
-      ((lag < 0)) && lag=0
-
-      local state="Unknown"
-      if [[ "$is_synced" == "true" ]]; then
-        state="Synchronized"
-      elif ((peers == 0)); then
-        state="Waiting for peers"
-      else
-        local pct="0.0"
-        if ((target > 0)); then
-          pct=$(awk -v h="$height" -v t="$target" 'BEGIN{printf "%.1f", (h/t)*100}')
-        fi
-        state="Syncing ($pct%)"
-      fi
-
-      idx=$(((idx + 1) % ${#spinstr}))
-      printf "\r\033[K  ${FG_YELLOW}%s${RESET} Monero : %s | Height: %s/%s (Lag: %s) | %s peers   " \
-        "${spinstr:$idx:1}" "${state}" "$height" "$target" "$lag" "$peers"
-
-      if ((height > 3500000)) && ([[ "$is_synced" == "true" ]] || ([[ "$state" != "Waiting for peers" ]] && ((lag <= 2)) && ((peers >= 2)))); then
-        printf "\r\033[K  ${FG_GREEN}✔${RESET} Monero synchronisé (Hauteur: %s)\n" "$height"
-        return 0
-      fi
-
-      sleep "$delay"
-    done
-  }
-
-  if wait_monero_ready; then
-    printf "  ${FG_GREEN}✔${RESET} Le nœud Monero est opérationnel\n"
-  else
-    exit 1
-  fi
-
-fi
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Tari ──────────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}💎  Déploiement du nœud Tari (merge mining)${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-TARI_DATA_DIR="$WORKER_HOME/.tari"
-
-INSTALLED_TARI=""
-
-if [[ -z "$TARI_ADDRESS" || "$MINING_MODE" == "moneroocean" || "$MINING_MODE" == "solo" ]]; then
-
-  if [[ "$MINING_MODE" == "moneroocean" ]]; then
-    printf "\n${FG_YELLOW}${BOLD}  ⏭ Tari est désactivé en mode MoneroOcean (nécessite P2Pool).${RESET}\n"
-  elif [[ "$MINING_MODE" == "solo" ]]; then
-    printf "\n${FG_YELLOW}${BOLD}  ⏭ Tari est désactivé en mode SOLO (nécessite P2Pool pour le merge mining).${RESET}\n"
-  else
-    printf "\n${FG_YELLOW}${BOLD}  ⏭ Merge mining Tari désactivé (aucune adresse configurée).${RESET}\n"
-  fi
-
-  systemctl disable minotari_node.service 2>/dev/null || true
-  systemctl stop minotari_node.service 2>/dev/null || true
-else
-
-  RESTART_TARI=0
-  RESTART_MINOTARI=0
-
-  fetch_latest_version "Tari" "tari-project/tari" TARI_VERSION
-
-  INSTALLED_TARI=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "tari-*" |
-    sed -E 's/.*tari-//' | sort -Vr | head -n1 || true)
-
-  show_component "Tari" "$INSTALLED_TARI" "$TARI_VERSION"
-
-  if [[ ! -d "$TARI_DATA_DIR" ]]; then
-    mkdir -p "$TARI_DATA_DIR/mainnet/config"
-    chown -R worker:worker "$TARI_DATA_DIR"
-  fi
-
-  if [[ -z "$INSTALLED_TARI" && (-z "$TARI_VERSION" || "$TARI_VERSION" == "v0.0.0") ]]; then
-    printf "  ${FG_RED}✖${RESET} Aucun binaire Tari installé, et impossible de récupérer une version distante.\n"
-    printf "     ${FG_YELLOW}⚠${RESET} Merge mining Tari désactivé.\n"
-    TARI_ADDRESS=""
-  else
-    if [[ "$TARI_VERSION" == "v0.0.0" || -z "$TARI_VERSION" ]]; then
-      printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
-      TARI_DIR="$WORKER_HOME/tari-$INSTALLED_TARI"
-      TARI_BIN="$TARI_DIR/minotari_node"
+    if wait_service_port monerod.service 18080 120 0 "Port P2P (18080) accessible"; then
+      :
     else
-      if [[ "$INSTALLED_TARI" != "$TARI_VERSION" ]]; then
-        download_and_extract \
-          "https://github.com/tari-project/tari/releases/download/${TARI_VERSION}/tari_suite-mainnet-linux-x86_64.zip" \
-          "$WORKER_HOME" "$TARI_VERSION"
-
-        rm -rf "$WORKER_HOME/tari-${INSTALLED_TARI}" 2>/dev/null || true
-
-        INSTALLED_TARI="$TARI_VERSION"
-        chown -R worker:worker "$WORKER_HOME/tari-$TARI_VERSION"
-        RESTART_TARI=1
-      fi
-
-      TARI_DIR="$WORKER_HOME/tari-$INSTALLED_TARI"
-      TARI_BIN="$TARI_DIR/minotari_node"
+      printf "  ${FG_RED}✖${RESET} Échec critique : Port P2P 18080 fermé (Pas de synchro possible)\n"
+      exit 1
     fi
 
-    if [[ ! -f "$TARI_BIN" ]]; then
-      printf "  ${FG_RED}✖${RESET} Binaire minotari_node introuvable dans $TARI_DIR\n"
+    if wait_service_port monerod.service 18081 120 0 "Port RPC (18081) accessible"; then
+      :
+    else
+      printf "  ${FG_RED}✖${RESET} Échec critique : Port RPC 18081 fermé (API injoignable)\n"
+      exit 1
+    fi
+
+    if wait_service_port monerod.service 18083 120 0 "Port ZMQ (18083) accessible"; then
+      :
+    else
+      printf "  ${FG_RED}✖${RESET} Échec critique : Port ZMQ 18083 fermé (P2Pool ne marchera pas)\n"
+      exit 1
+    fi
+
+    printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
+    API_READY=0
+    for i in {1..30}; do
+      if curl -s -f -m 2 -H 'Content-Type: application/json' http://127.0.0.1:18081/get_info > /dev/null 2>&1; then
+        API_READY=1
+        break
+      fi
+      sleep 1
+    done
+    printf "\r\033[K"
+
+    if ((API_READY)); then
+      printf "  ${FG_GREEN}✔${RESET} API Monero (RPC) répond\n"
+    else
+      printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API Monero (RPC) ne répond pas.\n"
+      exit 1
+    fi
+
+    wait_monero_ready() {
+      local delay=1.15
+      local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+      local idx=0
+
+      local highest_target_seen=3000000
+
+      local genesis_ts=1397818193
+      local now_ts=$(date +%s)
+      local max_possible_height=$(((now_ts - genesis_ts) / 60))
+
+      local last_height=0
+      local last_change_ts=$(date +%s)
+      local stall_timeout=1200
+      local restart_count=0
+
+      while true; do
+        check_monero_corruption
+
+        if ! systemctl is-active --quiet monerod.service; then
+          printf "\r\033[K  ${FG_RED}✖${RESET} Service monerod arrêté\n"
+          return 1
+        fi
+
+        local resp=$(curl -s -m 5 -H 'Content-Type: application/json' \
+          http://127.0.0.1:18081/get_info 2> /dev/null || echo "{}")
+
+        local header_req='{"jsonrpc":"2.0","id":"0","method":"get_last_block_header"}'
+        local header_resp=$(curl -s -m 5 -X POST http://127.0.0.1:18081/json_rpc -d "$header_req" -H 'Content-Type: application/json' 2> /dev/null)
+
+        if [[ -z "$resp" || -z "$header_resp" || "$resp" == "{}" ]]; then
+          printf "\r\033[K  ${FG_YELLOW}%s${RESET} Monero : Initialisation de l'API...   " "${spinstr:$idx:1}"
+          idx=$(((idx + 1) % ${#spinstr}))
+          sleep "$delay"
+          continue
+        fi
+
+        local is_synced=$(echo "$resp" | jq -r '.synchronized // false')
+        local height=$(echo "$resp" | jq -r '.height // 0')
+        local target=$(echo "$resp" | jq -r '.target_height // 0')
+
+        if ((target > max_possible_height)); then target=$height; fi
+
+        local last_block_ts=$(echo "$header_resp" | jq -r '.result.block_header.timestamp // 0')
+        local current_ts=$(date +%s)
+        local time_diff=$((current_ts - last_block_ts))
+
+        local in_peers=$(echo "$resp" | jq -r '.incoming_connections_count // 0')
+        local out_peers=$(echo "$resp" | jq -r '.outgoing_connections_count // 0')
+        local peers=$((in_peers + out_peers))
+
+        if ((target > highest_target_seen)); then highest_target_seen=$target; fi
+
+        local display_target=$target
+        if ((display_target < highest_target_seen)); then display_target=$highest_target_seen; fi
+        if ((display_target < height)); then display_target=$height; fi
+
+        local lag=$((display_target - height))
+        ((lag < 0)) && lag=0
+
+        local state="Unknown"
+        if [[ "$is_synced" == "true" ]] && ((time_diff < 1800)); then
+          state="Synchronized"
+        elif ((peers == 0)); then
+          state="Waiting for peers"
+        else
+          local pct="0.0"
+          if ((display_target > 0)); then
+            pct=$(awk -v h="$height" -v t="$display_target" 'BEGIN{printf "%.1f", (h/t)*100}')
+          fi
+          state="Syncing ($pct%)"
+        fi
+
+        idx=$(((idx + 1) % ${#spinstr}))
+        printf "\r\033[K  ${FG_YELLOW}%s${RESET} Monero : %s | Height: %s/%s (Lag: %s) | %s peers   " \
+          "${spinstr:$idx:1}" "${state}" "$height" "$display_target" "$lag" "$peers"
+
+        if ((last_block_ts > 0)) && ((time_diff < 1800)) && ([[ "$is_synced" == "true" ]] || ([[ "$state" != "Waiting for peers" ]] && ((lag <= 2)) && ((peers >= 2)))); then
+          printf "\r\033[K  ${FG_GREEN}✔${RESET} Monero synchronisé (Hauteur: %s)\n" "$height"
+          return 0
+        fi
+
+        sleep "$delay"
+      done
+    }
+
+    if wait_monero_ready; then
+      printf "  ${FG_GREEN}✔${RESET} Le nœud Monero est opérationnel\n"
+    else
+      exit 1
+    fi
+
+  fi
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Tari ──────────────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}💎  Déploiement du nœud Tari (merge mining)${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  TARI_DATA_DIR="$WORKER_HOME/.tari"
+
+  INSTALLED_TARI=""
+
+  if [[ -z "$TARI_ADDRESS" || "$MINING_MODE" == "moneroocean" || "$MINING_MODE" == "solo" ]]; then
+
+    if [[ "$MINING_MODE" == "moneroocean" ]]; then
+      printf "\n${FG_YELLOW}${BOLD}  ⏭ Tari est désactivé en mode MoneroOcean (nécessite P2Pool).${RESET}\n"
+    elif [[ "$MINING_MODE" == "solo" ]]; then
+      printf "\n${FG_YELLOW}${BOLD}  ⏭ Tari est désactivé en mode SOLO (nécessite P2Pool pour le merge mining).${RESET}\n"
+    else
+      printf "\n${FG_YELLOW}${BOLD}  ⏭ Merge mining Tari désactivé (aucune adresse configurée).${RESET}\n"
+    fi
+
+    systemctl disable minotari_node.service 2> /dev/null || true
+    systemctl stop minotari_node.service 2> /dev/null || true
+  else
+
+    RESTART_TARI=0
+    RESTART_MINOTARI=0
+
+    fetch_latest_version "Tari" "tari-project/tari" TARI_VERSION
+
+    INSTALLED_TARI=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "tari-*" |
+      sed -E 's/.*tari-//' | sort -Vr | head -n1 || true)
+
+    show_component "Tari" "$INSTALLED_TARI" "$TARI_VERSION"
+
+    if [[ ! -d "$TARI_DATA_DIR" ]]; then
+      mkdir -p "$TARI_DATA_DIR/mainnet/config"
+      chown -R worker:worker "$TARI_DATA_DIR"
+    fi
+
+    if [[ -z "$INSTALLED_TARI" && (-z "$TARI_VERSION" || "$TARI_VERSION" == "v0.0.0") ]]; then
+      printf "  ${FG_RED}✖${RESET} Aucun binaire Tari installé, et impossible de récupérer une version distante.\n"
       printf "     ${FG_YELLOW}⚠${RESET} Merge mining Tari désactivé.\n"
       TARI_ADDRESS=""
     else
+      if [[ "$TARI_VERSION" == "v0.0.0" || -z "$TARI_VERSION" ]]; then
+        printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
+        TARI_DIR="$WORKER_HOME/tari-$INSTALLED_TARI"
+        TARI_BIN="$TARI_DIR/minotari_node"
+      else
+        if [[ "$INSTALLED_TARI" != "$TARI_VERSION" ]]; then
+          download_and_extract \
+            "https://github.com/tari-project/tari/releases/download/${TARI_VERSION}/tari_suite-mainnet-linux-x86_64.zip" \
+            "$WORKER_HOME" "$TARI_VERSION"
 
-      CONFIG_PATH="$TARI_DATA_DIR/mainnet/config/config.toml"
+          rm -rf "$WORKER_HOME/tari-${INSTALLED_TARI}" 2> /dev/null || true
 
-      TARI_CONFIG=$(
-        cat <<'EOFCONFIG'
+          INSTALLED_TARI="$TARI_VERSION"
+          chown -R worker:worker "$WORKER_HOME/tari-$TARI_VERSION"
+          RESTART_TARI=1
+        fi
+
+        TARI_DIR="$WORKER_HOME/tari-$INSTALLED_TARI"
+        TARI_BIN="$TARI_DIR/minotari_node"
+      fi
+
+      if [[ ! -f "$TARI_BIN" ]]; then
+        printf "  ${FG_RED}✖${RESET} Binaire minotari_node introuvable dans $TARI_DIR\n"
+        printf "     ${FG_YELLOW}⚠${RESET} Merge mining Tari désactivé.\n"
+        TARI_ADDRESS=""
+      else
+
+        CONFIG_PATH="$TARI_DATA_DIR/mainnet/config/config.toml"
+
+        TARI_CONFIG=$(
+          cat << 'EOFCONFIG'
 [common]
 base_path = "TARI_DATA_DIR_PLACEHOLDER/mainnet"
 
 [p2p.seeds]
 dns_seed_name_servers = [
-    "1.1.1.1:853/cloudflare-dns.com",
-    "8.8.8.8:853/dns.google"
+    "system"
 ]
 
 [mainnet.p2p.seeds]
@@ -1957,43 +2264,43 @@ tor_socks_address = "/ip4/127.0.0.1/tcp/9050"
 blockchain_sync_config.initial_max_sync_latency = 3000
 blockchain_sync_config.rpc_deadline = 3000
 EOFCONFIG
-      )
+        )
 
-      TARI_CONFIG="${TARI_CONFIG//TARI_DATA_DIR_PLACEHOLDER/$TARI_DATA_DIR}"
-      TARI_CONFIG="${TARI_CONFIG//GRPC_PORT_PLACEHOLDER/$TARI_GRPC_PORT}"
+        TARI_CONFIG="${TARI_CONFIG//TARI_DATA_DIR_PLACEHOLDER/$TARI_DATA_DIR}"
+        TARI_CONFIG="${TARI_CONFIG//GRPC_PORT_PLACEHOLDER/$TARI_GRPC_PORT}"
 
-      NEW_CONFIG_HASH=$(echo "$TARI_CONFIG" | sha256sum | awk '{print $1}')
+        NEW_CONFIG_HASH=$(echo "$TARI_CONFIG" | sha256sum | awk '{print $1}')
 
-      if [[ -f "$CONFIG_PATH" ]]; then
-        EXISTING_CONFIG_HASH=$(cat "$CONFIG_PATH" | sha256sum | awk '{print $1}')
-      else
-        EXISTING_CONFIG_HASH=""
-      fi
-
-      if [[ "$NEW_CONFIG_HASH" != "$EXISTING_CONFIG_HASH" ]]; then
-        printf "  ${FG_YELLOW}⚙${RESET} Mise à jour de la configuration Minotari\n"
-
-        if systemctl is-active --quiet minotari_node.service; then
-          (
-            systemctl stop minotari_node.service 2>/dev/null
-            sleep 2
-          ) &
-          spinner $! "Arrêt du service Minotari (config modifiée)"
+        if [[ -f "$CONFIG_PATH" ]]; then
+          EXISTING_CONFIG_HASH=$(cat "$CONFIG_PATH" | sha256sum | awk '{print $1}')
+        else
+          EXISTING_CONFIG_HASH=""
         fi
 
-        mkdir -p "$TARI_DATA_DIR/mainnet/config"
+        if [[ "$NEW_CONFIG_HASH" != "$EXISTING_CONFIG_HASH" ]]; then
+          printf "  ${FG_YELLOW}⚙${RESET} Mise à jour de la configuration Minotari\n"
 
-        echo "$TARI_CONFIG" >"$CONFIG_PATH"
-        chown -R worker:worker "$TARI_DATA_DIR"
+          if systemctl is-active --quiet minotari_node.service; then
+            (
+              systemctl stop minotari_node.service 2> /dev/null
+              sleep 2
+            ) &
+            spinner $! "Arrêt du service Minotari (config modifiée)"
+          fi
 
-        RESTART_MINOTARI=1
-        printf "  ${FG_GREEN}✔${RESET} Configuration minotari mise à jour (Port gRPC ${TARI_GRPC_PORT})\n"
-      else
-        printf "  ${FG_GREEN}✔${RESET} Configuration minotari : déjà conforme\n"
-      fi
+          mkdir -p "$TARI_DATA_DIR/mainnet/config"
 
-      UNIT_MINOTARI=$(
-        cat <<EOF
+          echo "$TARI_CONFIG" > "$CONFIG_PATH"
+          chown -R worker:worker "$TARI_DATA_DIR"
+
+          RESTART_MINOTARI=1
+          printf "  ${FG_GREEN}✔${RESET} Configuration minotari mise à jour (Port gRPC ${TARI_GRPC_PORT})\n"
+        else
+          printf "  ${FG_GREEN}✔${RESET} Configuration minotari : déjà conforme\n"
+        fi
+
+        UNIT_MINOTARI=$(
+          cat << EOF
 [Unit]
 Description=Minotari Node (Tari merge mining - MAINNET)
 After=network-online.target tor.service
@@ -2007,6 +2314,9 @@ ExecStart=${TARI_BIN} --non-interactive-mode --network mainnet --base-path=${TAR
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=15
+Nice=0
+IOSchedulingClass=best-effort
+IOSchedulingPriority=2
 TimeoutStartSec=600
 StandardOutput=journal
 StandardError=journal
@@ -2018,274 +2328,299 @@ OOMScoreAdjust=-1000
 [Install]
 WantedBy=multi-user.target
 EOF
-      )
-
-      ensure_unit minotari_node.service "$UNIT_MINOTARI"
-
-      if ((RESTART_TARI || RESTART_MINOTARI)); then
-        systemctl daemon-reload
-        systemctl restart minotari_node.service
-        (sleep 15) &
-        spinner $! "Application de la config Tari"
-      fi
-
-      ensure_running_enabled minotari_node.service
-
-      install_tari_proto() {
-        local PROTO_DIR="/usr/local/share/tari/proto"
-
-        if [[ -f "$PROTO_DIR/base_node.proto" ]] && [[ -f "$PROTO_DIR/sidechain_types.proto" ]]; then
-          return 0
-        fi
-
-        mkdir -p "$PROTO_DIR"
-        local base_url="https://raw.githubusercontent.com/tari-project/tari/development/applications/minotari_app_grpc/proto"
-        local files=(
-          "base_node.proto" "types.proto" "transaction.proto" "network.proto"
-          "sidechain_types.proto" "block.proto" "block_header.proto"
-          "chain_metadata.proto" "common.proto" "compact_block.proto"
         )
 
-        printf "  ⠋ Installation proto Tari"
-        for file in "${files[@]}"; do
-          if [[ ! -f "$PROTO_DIR/$file" ]]; then
-            wget -q "$base_url/$file" -O "$PROTO_DIR/$file" 2>/dev/null || true
-          fi
-        done
-        printf "\r\033[K  ${FG_GREEN}✔${RESET} Fichiers proto Tari installés\n"
-      }
-      install_tari_proto
+        ensure_unit minotari_node.service "$UNIT_MINOTARI"
 
-      if wait_service_port minotari_node.service "$TARI_P2P_PORT" 180 0 "Port P2P ($TARI_P2P_PORT) accessible"; then
-        :
-      else
-        printf "  ${FG_RED}✖${RESET} Échec critique : Port P2P $TARI_P2P_PORT fermé (Pas de connexion réseau)\n"
-        journalctl -u minotari_node.service --no-pager -n 20
-        exit 1
-      fi
-
-      if wait_service_port minotari_node.service "$TARI_GRPC_PORT" 180 0 "Port gRPC ($TARI_GRPC_PORT) accessible"; then
-        :
-      else
-        printf "  ${FG_RED}✖${RESET} Échec critique : Port gRPC $TARI_GRPC_PORT fermé (Impossible de miner)\n"
-        journalctl -u minotari_node.service --no-pager -n 20
-        exit 1
-      fi
-
-      printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
-      API_READY=0
-      for i in {1..30}; do
-        if grpcurl -plaintext -max-time 2 -import-path /usr/local/share/tari/proto -proto base_node.proto 127.0.0.1:${TARI_GRPC_PORT} tari.rpc.BaseNode/GetVersion >/dev/null 2>&1; then
-          API_READY=1
-          break
+        if ((RESTART_TARI || RESTART_MINOTARI)); then
+          systemctl daemon-reload
+          systemctl restart minotari_node.service
+          (sleep 15) &
+          spinner $! "Application de la config Tari"
         fi
-        sleep 1
-      done
-      printf "\r\033[K"
 
-      if ((API_READY)); then
-        printf "  ${FG_GREEN}✔${RESET} API Tari (gRPC) répond\n"
-      else
-        printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API Tari ne répond pas.\n"
-        exit 1
-      fi
+        ensure_running_enabled minotari_node.service
 
-      wait_tari_ready() {
-        local delay=1.15
-        local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-        local idx=0
-        local grpc_wait=0
-        local max_grpc_wait=60
+        install_tari_proto() {
+          local PROTO_DIR="/usr/local/share/tari/proto"
 
-        local last_height=0
-        local last_change_ts=$(date +%s)
-        local restart_count=0
-        local last_sync_state=""
-
-        while true; do
-          if ! systemctl is-active --quiet minotari_node.service; then
-            printf "\r\033[K  ${FG_RED}✖${RESET} Service minotari_node arrêté\n"
-            return 1
-          fi
-
-          if ! timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/${TARI_GRPC_PORT}" 2>/dev/null; then
-            printf "\r  ${FG_YELLOW}%s${RESET} Tari : Attente gRPC (%d/%d)...   " \
-              "${spinstr:$idx:1}" "$grpc_wait" "$max_grpc_wait"
-            grpc_wait=$((grpc_wait + 1))
-            if ((grpc_wait > max_grpc_wait)); then
-              printf "\r\033[K  ${FG_RED}✖${RESET} Port gRPC ${TARI_GRPC_PORT} inaccessible\n"
-              return 1
-            fi
-            sleep 2
-            idx=$(((idx + 1) % ${#spinstr}))
-            continue
-          fi
-          grpc_wait=0
-
-          local tip_info=$(grpcurl -plaintext -max-time 5 \
-            -import-path /usr/local/share/tari/proto \
-            -proto base_node.proto \
-            127.0.0.1:${TARI_GRPC_PORT} \
-            tari.rpc.BaseNode/GetTipInfo 2>/dev/null)
-
-          local sync_progress=$(grpcurl -plaintext -max-time 5 \
-            -import-path /usr/local/share/tari/proto \
-            -proto base_node.proto \
-            127.0.0.1:${TARI_GRPC_PORT} \
-            tari.rpc.BaseNode/GetSyncProgress 2>/dev/null)
-
-          if [[ -z "$tip_info" || -z "$sync_progress" ]]; then
-            printf "\r  ${FG_YELLOW}%s${RESET} Tari : API gRPC initialisation...   " "${spinstr:$idx:1}"
-            sleep "$delay"
-            idx=$(((idx + 1) % ${#spinstr}))
-            continue
-          fi
-
-          local base_node_state=$(echo "$tip_info" | jq -r '.baseNodeState // "Unknown"' 2>/dev/null || echo "Unknown")
-
-          local sync_state=$(echo "$sync_progress" | jq -r '.state // ""' 2>/dev/null || echo "")
-          local short_desc=$(echo "$sync_progress" | jq -r '.shortDesc // ""' 2>/dev/null || echo "")
-          local current_full_state="${sync_state}|${short_desc}"
-
-          local current_height=$(echo "$tip_info" | jq -r '.metadata.bestBlockHeight // "0"' 2>/dev/null || echo "0")
-          current_height=${current_height:-0}
-
-          local local_height=$(echo "$sync_progress" | jq -r '.localHeight // "0"' 2>/dev/null || echo "0")
-          local_height=${local_height:-0}
-
-          local tip_height=$(echo "$sync_progress" | jq -r '.tipHeight // "0"' 2>/dev/null || echo "0")
-          tip_height=${tip_height:-0}
-
-          local peers_info=$(grpcurl -plaintext -max-time 3 \
-            -import-path /usr/local/share/tari/proto \
-            -proto base_node.proto \
-            127.0.0.1:${TARI_GRPC_PORT} \
-            tari.rpc.BaseNode/ListConnectedPeers 2>/dev/null)
-          local peers=$(echo "$peers_info" | jq '.connectedPeers | length // 0' 2>/dev/null || echo 0)
-          peers=${peers:-0}
-
-          local target_height=$tip_height
-          ((target_height < local_height)) && target_height=$local_height
-          local remaining=$((target_height - local_height))
-
-          local pct="0.0"
-          if ((target_height > 0)); then
-            pct=$(awk -v c="$local_height" -v t="$target_height" 'BEGIN{printf "%.1f", (c/t)*100}')
-          fi
-
-          idx=$(((idx + 1) % ${#spinstr}))
-
-          local display_state="${sync_state:-$short_desc}"
-
-          if ((local_height > 0 && tip_height > 0)); then
-            printf "\r\033[K  ${FG_YELLOW}%s${RESET} Tari : %s (%s%%) | Height: %s/%s (Lag: %s) | %s peers   " \
-              "${spinstr:$idx:1}" "${display_state}" "$pct" "$local_height" "$target_height" "$remaining" "$peers"
-          else
-            printf "\r\033[K  ${FG_YELLOW}%s${RESET} Tari : %s | %s peers   " \
-              "${spinstr:$idx:1}" "${display_state}" "$peers"
-          fi
-
-          local is_synced="false"
-          if [[ "$base_node_state" == "Listening" ]] ||
-            [[ "$base_node_state" == "ListeningCurrent" ]] ||
-            [[ "$sync_state" == "DONE" ]]; then
-            is_synced="true"
-          fi
-
-          if [[ "$is_synced" == "true" ]] && ((peers >= 1)) && ((remaining <= 3)) && ((current_height > 0)); then
-            printf "\r\033[K  ${FG_GREEN}✔${RESET} Tari synchronisé (Hauteur: %s)\n" "$local_height"
+          if [[ -f "$PROTO_DIR/base_node.proto" ]] && [[ -f "$PROTO_DIR/sidechain_types.proto" ]]; then
             return 0
           fi
 
-          sleep "$delay"
+          mkdir -p "$PROTO_DIR"
+          local base_url="https://raw.githubusercontent.com/tari-project/tari/development/applications/minotari_app_grpc/proto"
+          local files=(
+            "base_node.proto" "types.proto" "transaction.proto" "network.proto"
+            "sidechain_types.proto" "block.proto" "block_header.proto"
+            "chain_metadata.proto" "common.proto" "compact_block.proto"
+          )
+
+          printf "  ⠋ Installation proto Tari"
+          for file in "${files[@]}"; do
+            if [[ ! -f "$PROTO_DIR/$file" ]]; then
+              wget -q "$base_url/$file" -O "$PROTO_DIR/$file" 2> /dev/null || true
+            fi
+          done
+          printf "\r\033[K  ${FG_GREEN}✔${RESET} Fichiers proto Tari installés\n"
+        }
+        install_tari_proto
+
+        if wait_service_port minotari_node.service "$TARI_P2P_PORT" 180 0 "Port P2P ($TARI_P2P_PORT) accessible"; then
+          :
+        else
+          printf "  ${FG_RED}✖${RESET} Échec critique : Port P2P $TARI_P2P_PORT fermé (Pas de connexion réseau)\n"
+          journalctl -u minotari_node.service --no-pager -n 20
+          exit 1
+        fi
+
+        if wait_service_port minotari_node.service "$TARI_GRPC_PORT" 180 0 "Port gRPC ($TARI_GRPC_PORT) accessible"; then
+          :
+        else
+          printf "  ${FG_RED}✖${RESET} Échec critique : Port gRPC $TARI_GRPC_PORT fermé (Impossible de miner)\n"
+          journalctl -u minotari_node.service --no-pager -n 20
+          exit 1
+        fi
+
+        printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
+        API_READY=0
+        for i in {1..30}; do
+          if grpcurl -plaintext -max-time 2 -import-path /usr/local/share/tari/proto -proto base_node.proto 127.0.0.1:${TARI_GRPC_PORT} tari.rpc.BaseNode/GetVersion > /dev/null 2>&1; then
+            API_READY=1
+            break
+          fi
+          sleep 1
         done
-      }
+        printf "\r\033[K"
 
-      wait_tari_ready
-      printf "  ${FG_GREEN}✔${RESET} Le nœud Tari est opérationnel\n"
+        if ((API_READY)); then
+          printf "  ${FG_GREEN}✔${RESET} API Tari (gRPC) répond\n"
+        else
+          printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API Tari ne répond pas.\n"
+          exit 1
+        fi
 
-    fi
-  fi
-fi
+        wait_tari_ready() {
+          local delay=1.15
+          local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+          local idx=0
+          local grpc_wait=0
+          local max_grpc_wait=60
 
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# P2Pool ────────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}🔗  Déploiement du pool décentralisé P2Pool${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
+          local highest_target_seen=0
+          local genesis_ts=1718800000
+          local now_ts=$(date +%s)
+          local max_possible_height=$((((now_ts - genesis_ts) / 120) + 50000))
 
-INSTALLED_P2POOL=""
+          local last_height=0
+          local last_change_ts=$(date +%s)
+          local restart_count=0
+          local last_sync_state=""
 
-if [[ "$MINING_MODE" != "pool-nano" && "$MINING_MODE" != "pool-mini" && "$MINING_MODE" != "pool-full" ]]; then
-  printf "\n${FG_YELLOW}${BOLD}  ⏭ Le pool P2Pool n'est pas utile en mode %s.${RESET}\n" "$mining_label"
-  systemctl disable p2pool.service 2>/dev/null || true
-  systemctl stop p2pool.service 2>/dev/null || true
-else
-  RESTART_P2POOL=0
+          while true; do
+            check_tari_corruption
 
-  if [[ "$MINING_MODE" == "pool-nano" ]]; then
-    MODE_ARG="--nano"
-    PEERS_LIST="nano.p2pool.observer:37890,seed.p2pool.io:37890,node.p2pool.io:37890"
-  elif [[ "$MINING_MODE" == "pool-mini" ]]; then
-    MODE_ARG="--mini"
-    PEERS_LIST="mini.p2pool.observer:37888,seed.p2pool.io:37888,node.p2pool.io:37888"
-  else
-    MODE_ARG=""
-    PEERS_LIST="seed.p2pool.io:37889,node.p2pool.io:37889,xmrvsbeast.com:37889"
-  fi
+            if ! systemctl is-active --quiet minotari_node.service; then
+              printf "\r\033[K  ${FG_RED}✖${RESET} Service minotari_node arrêté\n"
+              return 1
+            fi
 
-  fetch_latest_version "P2Pool" "SChernykh/p2pool" P2POOL_VERSION
+            if ! timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/${TARI_GRPC_PORT}" 2> /dev/null; then
+              printf "\r  ${FG_YELLOW}%s${RESET} Tari : Attente gRPC (%d/%d)...   " \
+                "${spinstr:$idx:1}" "$grpc_wait" "$max_grpc_wait"
+              grpc_wait=$((grpc_wait + 1))
+              if ((grpc_wait > max_grpc_wait)); then
+                printf "\r\033[K  ${FG_RED}✖${RESET} Port gRPC ${TARI_GRPC_PORT} inaccessible\n"
+                return 1
+              fi
+              sleep 2
+              idx=$(((idx + 1) % ${#spinstr}))
+              continue
+            fi
+            grpc_wait=0
 
-  INSTALLED_P2POOL=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "p2pool-*" |
-    sed -E 's/.*p2pool-//' | sort -Vr | head -n1 || true)
+            local tip_info=$(grpcurl -plaintext -max-time 5 \
+              -import-path /usr/local/share/tari/proto \
+              -proto base_node.proto \
+              127.0.0.1:${TARI_GRPC_PORT} \
+              tari.rpc.BaseNode/GetTipInfo 2> /dev/null || echo "{}")
 
-  show_component "P2Pool" "$INSTALLED_P2POOL" "$P2POOL_VERSION"
+            local sync_progress=$(grpcurl -plaintext -max-time 5 \
+              -import-path /usr/local/share/tari/proto \
+              -proto base_node.proto \
+              127.0.0.1:${TARI_GRPC_PORT} \
+              tari.rpc.BaseNode/GetSyncProgress 2> /dev/null || echo "{}")
 
-  if [[ -z "$INSTALLED_P2POOL" && (-z "$P2POOL_VERSION" || "$P2POOL_VERSION" == "v0.0.0") ]]; then
-    printf "  ${FG_RED}✖${RESET} Aucun binaire P2Pool installé, et version distante indisponible.\n"
-    printf "     ${FG_RED}P2Pool désactivé.${RESET}\n"
-    MODE_ARG="" P2POOL_BIN="" P2POOL_DIR="" P2POOL_PORT="" STRATUM_PORT=""
-  else
-    if [[ "$P2POOL_VERSION" == "v0.0.0" || -z "$P2POOL_VERSION" ]]; then
-      printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
-      P2POOL_DIR="$WORKER_HOME/p2pool-$INSTALLED_P2POOL"
-      P2POOL_BIN="$P2POOL_DIR/p2pool"
-    else
-      if [[ "$INSTALLED_P2POOL" != "$P2POOL_VERSION" ]]; then
-        download_and_extract \
-          "https://github.com/SChernykh/p2pool/releases/download/${P2POOL_VERSION}/p2pool-${P2POOL_VERSION}-linux-x64.tar.gz" \
-          "$WORKER_HOME" "$P2POOL_VERSION"
-        rm -rf "$WORKER_HOME/p2pool-${INSTALLED_P2POOL}" 2>/dev/null || true
-        mv "$WORKER_HOME/p2pool-${P2POOL_VERSION}-linux-x64" "$WORKER_HOME/p2pool-$P2POOL_VERSION"
-        INSTALLED_P2POOL="$P2POOL_VERSION"
-        chown -R worker:worker "$WORKER_HOME/p2pool-$P2POOL_VERSION"
-        RESTART_P2POOL=1
-        P2POOL_DIR="$WORKER_HOME/p2pool-$P2POOL_VERSION"
-        P2POOL_BIN="$P2POOL_DIR/p2pool"
-      else
-        P2POOL_DIR="$WORKER_HOME/p2pool-$INSTALLED_P2POOL"
-        P2POOL_BIN="$P2POOL_DIR/p2pool"
+            if [[ -z "$tip_info" || -z "$sync_progress" || "$tip_info" == "{}" ]]; then
+              printf "\r  ${FG_YELLOW}%s${RESET} Tari : API gRPC initialisation...   " "${spinstr:$idx:1}"
+              sleep "$delay"
+              idx=$(((idx + 1) % ${#spinstr}))
+              continue
+            fi
+
+            local base_node_state=$(echo "$tip_info" | jq -r '.baseNodeState // "Unknown"' 2> /dev/null || echo "Unknown")
+
+            local sync_state=$(echo "$sync_progress" | jq -r '.state // ""' 2> /dev/null || echo "")
+            local short_desc=$(echo "$sync_progress" | jq -r '.shortDesc // ""' 2> /dev/null || echo "")
+            local current_full_state="${sync_state}|${short_desc}"
+
+            local current_height=$(echo "$tip_info" | jq -r '.metadata.bestBlockHeight // "0"' 2> /dev/null || echo "0")
+            current_height=${current_height:-0}
+
+            local local_height=$(echo "$sync_progress" | jq -r '.localHeight // "0"' 2> /dev/null || echo "0")
+            local_height=${local_height:-0}
+
+            local tip_height=$(echo "$sync_progress" | jq -r '.tipHeight // "0"' 2> /dev/null || echo "0")
+            tip_height=${tip_height:-0}
+
+            if ((tip_height > max_possible_height)); then tip_height=$local_height; fi
+
+            local block_ts=0
+            if ((current_height > 0)); then
+              local req_json="{\"from_height\": $current_height, \"num_headers\": 1}"
+              local header_json=$(grpcurl -plaintext -max-time 2 -d "$req_json" \
+                -import-path /usr/local/share/tari/proto \
+                -proto base_node.proto \
+                127.0.0.1:${TARI_GRPC_PORT} \
+                tari.rpc.BaseNode/ListHeaders 2> /dev/null || echo "{}")
+              block_ts=$(echo "$header_json" | jq -r '.header.timestamp // .headers[0].header.timestamp.seconds // .headers[0].header.timestamp // 0')
+            fi
+            local current_time=$(date +%s)
+            local time_diff=$((current_time - block_ts))
+
+            local peers_info=$(grpcurl -plaintext -max-time 3 \
+              -import-path /usr/local/share/tari/proto \
+              -proto base_node.proto \
+              127.0.0.1:${TARI_GRPC_PORT} \
+              tari.rpc.BaseNode/ListConnectedPeers 2> /dev/null || echo "{}")
+            local peers=$(echo "$peers_info" | jq '.connectedPeers | length // 0' 2> /dev/null || echo 0)
+            peers=${peers:-0}
+
+            if ((tip_height > highest_target_seen)); then highest_target_seen=$tip_height; fi
+
+            local target_height=$tip_height
+            if ((target_height < local_height)); then target_height=$highest_target_seen; fi
+            if ((target_height < local_height)); then target_height=$local_height; fi
+
+            local remaining=$((target_height - local_height))
+
+            local pct="0.0"
+            if ((target_height > 0)); then
+              pct=$(awk -v c="$local_height" -v t="$target_height" 'BEGIN{printf "%.1f", (c/t)*100}')
+            fi
+
+            idx=$(((idx + 1) % ${#spinstr}))
+
+            local display_state="${sync_state:-$short_desc}"
+
+            if ((local_height > 0 && tip_height > 0)); then
+              printf "\r\033[K  ${FG_YELLOW}%s${RESET} Tari : %s (%s%%) | Height: %s/%s (Lag: %s) | %s peers   " \
+                "${spinstr:$idx:1}" "${display_state}" "$pct" "$local_height" "$target_height" "$remaining" "$peers"
+            else
+              printf "\r\033[K  ${FG_YELLOW}%s${RESET} Tari : %s | %s peers   " \
+                "${spinstr:$idx:1}" "${display_state}" "$peers"
+            fi
+
+            local is_synced="false"
+            if [[ "${base_node_state^^}" == "LISTENING"* ]] ||
+              [[ "$sync_state" == "DONE" ]]; then
+              is_synced="true"
+            fi
+
+            if ((block_ts > 0)) && ((time_diff < 1800)) && [[ "$is_synced" == "true" ]] && ((peers >= 1)) && ((remaining <= 3)); then
+              printf "\r\033[K  ${FG_GREEN}✔${RESET} Tari synchronisé (Hauteur: %s)\n" "$local_height"
+              return 0
+            fi
+
+            sleep "$delay"
+          done
+        }
+
+        wait_tari_ready
+        printf "  ${FG_GREEN}✔${RESET} Le nœud Tari est opérationnel\n"
+
       fi
     fi
+  fi
 
-    P2POOL_STATS_DIR="$WORKER_HOME/p2pool-stats"
-    mkdir -p "$P2POOL_STATS_DIR"
-    chown -R worker:worker "$P2POOL_STATS_DIR"
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # P2Pool ────────────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}🔗  Déploiement du pool décentralisé P2Pool${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
 
-    P2POOL_OPTIONS="--host 127.0.0.1 --wallet $MONERO_ADDRESS $MODE_ARG --local-api --data-api $P2POOL_STATS_DIR --stratum 127.0.0.1:$STRATUM_PORT --p2p 0.0.0.0:$P2POOL_PORT"
+  INSTALLED_P2POOL=""
 
-    P2POOL_OPTIONS="$P2POOL_OPTIONS --addpeers \"$PEERS_LIST\""
+  if [[ "$MINING_MODE" != "pool-nano" && "$MINING_MODE" != "pool-mini" && "$MINING_MODE" != "pool-full" ]]; then
+    printf "\n${FG_YELLOW}${BOLD}  ⏭ Le pool P2Pool n'est pas utile en mode %s.${RESET}\n" "$mining_label"
+    systemctl disable p2pool.service 2> /dev/null || true
+    systemctl stop p2pool.service 2> /dev/null || true
+  else
+    RESTART_P2POOL=0
 
-    if [[ -n "$TARI_ADDRESS" && -f "$TARI_BIN" ]]; then
-      P2POOL_OPTIONS="$P2POOL_OPTIONS --merge-mine tari://127.0.0.1:${TARI_GRPC_PORT} $TARI_ADDRESS"
+    if [[ "$MINING_MODE" == "pool-nano" ]]; then
+      MODE_ARG="--nano"
+      PEERS_LIST="nano.p2pool.observer:37890,seed.p2pool.io:37890,node.p2pool.io:37890"
+    elif [[ "$MINING_MODE" == "pool-mini" ]]; then
+      MODE_ARG="--mini"
+      PEERS_LIST="mini.p2pool.observer:37888,seed.p2pool.io:37888,node.p2pool.io:37888"
+    else
+      MODE_ARG=""
+      PEERS_LIST="seed.p2pool.io:37889,node.p2pool.io:37889,xmrvsbeast.com:37889"
     fi
 
-    if [[ -n "$TARI_ADDRESS" && -f "$TARI_BIN" ]]; then
-      UNIT_P2POOL=$(
-        cat <<EOF
+    fetch_latest_version "P2Pool" "SChernykh/p2pool" P2POOL_VERSION
+
+    INSTALLED_P2POOL=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "p2pool-*" |
+      sed -E 's/.*p2pool-//' | sort -Vr | head -n1 || true)
+
+    show_component "P2Pool" "$INSTALLED_P2POOL" "$P2POOL_VERSION"
+
+    if [[ -z "$INSTALLED_P2POOL" && (-z "$P2POOL_VERSION" || "$P2POOL_VERSION" == "v0.0.0") ]]; then
+      printf "  ${FG_RED}✖${RESET} Aucun binaire P2Pool installé, et version distante indisponible.\n"
+      printf "     ${FG_RED}P2Pool désactivé.${RESET}\n"
+      MODE_ARG="" P2POOL_BIN="" P2POOL_DIR="" P2POOL_PORT="" STRATUM_PORT=""
+    else
+      if [[ "$P2POOL_VERSION" == "v0.0.0" || -z "$P2POOL_VERSION" ]]; then
+        printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
+        P2POOL_DIR="$WORKER_HOME/p2pool-$INSTALLED_P2POOL"
+        P2POOL_BIN="$P2POOL_DIR/p2pool"
+      else
+        if [[ "$INSTALLED_P2POOL" != "$P2POOL_VERSION" ]]; then
+          download_and_extract \
+            "https://github.com/SChernykh/p2pool/releases/download/${P2POOL_VERSION}/p2pool-${P2POOL_VERSION}-linux-x64.tar.gz" \
+            "$WORKER_HOME" "$P2POOL_VERSION"
+          rm -rf "$WORKER_HOME/p2pool-${INSTALLED_P2POOL}" 2> /dev/null || true
+          mv "$WORKER_HOME/p2pool-${P2POOL_VERSION}-linux-x64" "$WORKER_HOME/p2pool-$P2POOL_VERSION"
+          INSTALLED_P2POOL="$P2POOL_VERSION"
+          chown -R worker:worker "$WORKER_HOME/p2pool-$P2POOL_VERSION"
+          RESTART_P2POOL=1
+          P2POOL_DIR="$WORKER_HOME/p2pool-$P2POOL_VERSION"
+          P2POOL_BIN="$P2POOL_DIR/p2pool"
+        else
+          P2POOL_DIR="$WORKER_HOME/p2pool-$INSTALLED_P2POOL"
+          P2POOL_BIN="$P2POOL_DIR/p2pool"
+        fi
+      fi
+
+      P2POOL_STATS_DIR="$WORKER_HOME/p2pool-stats"
+      mkdir -p "$P2POOL_STATS_DIR"
+      chown -R worker:worker "$P2POOL_STATS_DIR"
+
+      P2POOL_OPTIONS="--host 127.0.0.1 --wallet $MONERO_ADDRESS $MODE_ARG --local-api --data-api $P2POOL_STATS_DIR --stratum 127.0.0.1:$STRATUM_PORT --p2p 0.0.0.0:$P2POOL_PORT"
+
+      P2POOL_OPTIONS="$P2POOL_OPTIONS --addpeers \"$PEERS_LIST\""
+
+      if [[ -n "$TARI_ADDRESS" && -f "$TARI_BIN" ]]; then
+        P2POOL_OPTIONS="$P2POOL_OPTIONS --merge-mine tari://127.0.0.1:${TARI_GRPC_PORT} $TARI_ADDRESS"
+      fi
+
+      if [[ -n "$TARI_ADDRESS" && -f "$TARI_BIN" ]]; then
+        UNIT_P2POOL=$(
+          cat << EOF
 [Unit]
 Description=P2Pool ($MINING_MODE) - Merge Mining Tari
 After=network-online.target monerod.service minotari_node.service
@@ -2299,6 +2634,9 @@ ExecStartPre=/bin/sleep 5
 ExecStart=/bin/bash -c '$P2POOL_BIN $P2POOL_OPTIONS'
 Restart=on-failure
 RestartSec=10
+Nice=-10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=0
 TimeoutStartSec=360
 ProtectSystem=full
 NoNewPrivileges=true
@@ -2308,10 +2646,10 @@ OOMScoreAdjust=-1000
 [Install]
 WantedBy=multi-user.target
 EOF
-      )
-    else
-      UNIT_P2POOL=$(
-        cat <<EOF
+        )
+      else
+        UNIT_P2POOL=$(
+          cat << EOF
 [Unit]
 Description=P2Pool ($MINING_MODE) - Monero Only
 After=network-online.target monerod.service
@@ -2325,6 +2663,9 @@ ExecStartPre=/bin/sleep 2
 ExecStart=/bin/bash -c '$P2POOL_BIN $P2POOL_OPTIONS'
 Restart=on-failure
 RestartSec=5
+Nice=-10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=0
 TimeoutStartSec=360
 ProtectSystem=full
 NoNewPrivileges=true
@@ -2334,239 +2675,228 @@ OOMScoreAdjust=-1000
 [Install]
 WantedBy=multi-user.target
 EOF
-      )
-    fi
-
-    UNIT_HASH_FILE="/etc/.last-p2pool-unit"
-    NEW_HASH=$(echo "$UNIT_P2POOL" | sha256sum | awk '{print $1}')
-    OLD_HASH=$(cat "$UNIT_HASH_FILE" 2>/dev/null || echo "")
-
-    if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
-      echo "$NEW_HASH" >"$UNIT_HASH_FILE"
-      RESTART_P2POOL=1
-      printf "  ${FG_YELLOW}↻${RESET} Changement de configuration P2Pool – redémarrage\n"
-    fi
-
-    ensure_unit p2pool.service "$UNIT_P2POOL"
-
-    if ((RESTART_P2POOL)); then
-      systemctl daemon-reload
-
-      (wait_monero_ready) &
-      pid=$!
-
-      if spinner "$pid" "Synchronisation Monero pour P2Pool…" >/dev/null; then
-        printf "  ${FG_GREEN}✔${RESET} monerod pleinement prêt pour P2Pool\n"
-      else
-        printf "  ${FG_RED}✖${RESET} monerod bloqué (pas de progrès depuis 20 min) – démarrage forcé de P2Pool\n"
+        )
       fi
 
-      if [[ -n "$TARI_ADDRESS" && -f "$TARI_BIN" ]]; then
-        printf "  ${FG_YELLOW}⧖${RESET} Attente du service Tari (gRPC port ${TARI_GRPC_PORT})...\n"
+      UNIT_HASH_FILE="/etc/.last-p2pool-unit"
+      NEW_HASH=$(echo "$UNIT_P2POOL" | sha256sum | awk '{print $1}')
+      OLD_HASH=$(cat "$UNIT_HASH_FILE" 2> /dev/null || echo "")
 
-        TARI_READY=0
-        while [[ $TARI_READY -lt 30 ]]; do
-          if systemctl is-active --quiet minotari_node.service &&
-            timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/${TARI_GRPC_PORT}" 2>/dev/null; then
-            printf "\033[A\r\033[K  ${FG_GREEN}✔${RESET} Service Tari opérationnel (gRPC port ${TARI_GRPC_PORT} ouvert)\n"
-            break
-          fi
-          sleep 2
-          TARI_READY=$((TARI_READY + 1))
-        done
+      if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
+        echo "$NEW_HASH" > "$UNIT_HASH_FILE"
+        RESTART_P2POOL=1
+        printf "  ${FG_YELLOW}↻${RESET} Changement de configuration P2Pool – redémarrage\n"
+      fi
 
-        if [[ $TARI_READY -ge 30 ]]; then
-          printf "\033[A\r\033[K  ${FG_YELLOW}⚠${RESET} Tari gRPC non prêt après 60s – P2Pool démarré sans merge mining\n"
-          printf "  💡 Le merge mining Tari sera actif dès que le nœud répondra\n"
+      ensure_unit p2pool.service "$UNIT_P2POOL"
+
+      if ((RESTART_P2POOL)); then
+        systemctl daemon-reload
+
+        (wait_monero_ready) &
+        pid=$!
+
+        if spinner "$pid" "Synchronisation Monero pour P2Pool…" > /dev/null; then
+          printf "  ${FG_GREEN}✔${RESET} monerod pleinement prêt pour P2Pool\n"
+        else
+          printf "  ${FG_RED}✖${RESET} monerod bloqué (pas de progrès depuis 20 min) – démarrage forcé de P2Pool\n"
         fi
+
+        if [[ -n "$TARI_ADDRESS" && -f "$TARI_BIN" ]]; then
+          if wait_tari_ready; then
+            :
+          else
+            printf "\r\033[K  ${FG_YELLOW}⚠${RESET} Tari n'est pas prêt après l'attente – P2Pool démarre sans merge mining immédiat\n"
+            printf "  💡 Le merge mining s'activera tout seul dès que Tari sera synchronisé.\n"
+          fi
+        fi
+
+        (
+          systemctl restart p2pool
+          systemctl enable --now p2pool > /dev/null 2>&1
+        ) &
+        spinner $! "Application de la configuration P2Pool..."
+
+      else
+        ensure_running_enabled p2pool.service
       fi
 
-      (
-        systemctl restart p2pool
-        systemctl enable --now p2pool >/dev/null 2>&1
-      ) &
-      spinner $! "Application de la configuration P2Pool..."
+      case "$MINING_MODE" in
+        "pool-nano") CURRENT_P2P_PORT=37890 ;;
+        "pool-mini") CURRENT_P2P_PORT=37888 ;;
+        *) CURRENT_P2P_PORT=37889 ;;
+      esac
 
-    else
-      ensure_running_enabled p2pool.service
-    fi
-
-    case "$MINING_MODE" in
-      "pool-nano") CURRENT_P2P_PORT=37890 ;;
-      "pool-mini") CURRENT_P2P_PORT=37888 ;;
-      *) CURRENT_P2P_PORT=37889 ;;
-    esac
-
-    if wait_service_port p2pool.service "$CURRENT_P2P_PORT" 180 0 "Port P2P ($CURRENT_P2P_PORT) accessible"; then
-      :
-    else
-      printf "  ${FG_RED}✖${RESET} Échec critique : Port P2P $CURRENT_P2P_PORT fermé (Pas de connexion au Pool)\n"
-      journalctl -u p2pool.service --no-pager -n 20
-      exit 1
-    fi
-
-    if wait_service_port p2pool.service "$STRATUM_PORT" 180 0 "Port Stratum ($STRATUM_PORT) accessible"; then
-      :
-    else
-      printf "  ${FG_RED}✖${RESET} Échec critique : Port Stratum $STRATUM_PORT fermé (Impossible de miner)\n"
-      journalctl -u p2pool.service --no-pager -n 20
-      exit 1
-    fi
-
-    printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
-    API_READY=0
-    for i in {1..30}; do
-      if curl -s -f -m 2 "http://127.0.0.1:$STRATUM_PORT/local/stats" >/dev/null 2>&1; then
-        API_READY=1
-        break
+      if wait_service_port p2pool.service "$CURRENT_P2P_PORT" 180 0 "Port P2P ($CURRENT_P2P_PORT) accessible"; then
+        :
+      else
+        printf "  ${FG_RED}✖${RESET} Échec critique : Port P2P $CURRENT_P2P_PORT fermé (Pas de connexion au Pool)\n"
+        journalctl -u p2pool.service --no-pager -n 20
+        exit 1
       fi
-      sleep 1
-    done
-    printf "\r\033[K"
 
-    if ((API_READY)); then
-      printf "  ${FG_GREEN}✔${RESET} API P2Pool (Stratum) répond\n"
-    else
-      printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API P2Pool ne répond pas.\n"
-      exit 1
+      if wait_service_port p2pool.service "$STRATUM_PORT" 180 0 "Port Stratum ($STRATUM_PORT) accessible"; then
+        :
+      else
+        printf "  ${FG_RED}✖${RESET} Échec critique : Port Stratum $STRATUM_PORT fermé (Impossible de miner)\n"
+        journalctl -u p2pool.service --no-pager -n 20
+        exit 1
+      fi
+
+      printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
+      API_READY=0
+      for i in {1..30}; do
+        if curl -s -f -m 2 "http://127.0.0.1:$STRATUM_PORT/local/stats" > /dev/null 2>&1; then
+          API_READY=1
+          break
+        fi
+        sleep 1
+      done
+      printf "\r\033[K"
+
+      if ((API_READY)); then
+        printf "  ${FG_GREEN}✔${RESET} API P2Pool (Stratum) répond\n"
+      else
+        printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API P2Pool ne répond pas.\n"
+        exit 1
+      fi
+
+      printf "  ${FG_GREEN}✔${RESET} Le pool P2Pool est opérationnel\n"
     fi
-
-    printf "  ${FG_GREEN}✔${RESET} Le pool P2Pool est opérationnel\n"
   fi
-fi
 
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# XMRig ─────────────────────────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n"
-printf "${FG_CYAN}${BOLD}⛏️   Déploiement du mineur XMRig (CPU)${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # XMRig ─────────────────────────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n"
+  printf "${FG_CYAN}${BOLD}⛏️   Déploiement du mineur XMRig (CPU)${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
 
-RESTART_XMRIG=0
+  RESTART_XMRIG=0
 
-fetch_latest_version "XMRig" "xmrig/xmrig" XMRIG_VERSION
+  fetch_latest_version "XMRig" "xmrig/xmrig" XMRIG_VERSION
 
-INSTALLED_XMRIG=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "xmrig-*" |
-  sed -E 's/.*xmrig-//' | sort -Vr | head -n1 || true)
+  INSTALLED_XMRIG=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "xmrig-*" |
+    sed -E 's/.*xmrig-//' | sort -Vr | head -n1 || true)
 
-show_component "XMRig" "$INSTALLED_XMRIG" "$XMRIG_VERSION"
+  show_component "XMRig" "$INSTALLED_XMRIG" "$XMRIG_VERSION"
 
-if [[ -z "$INSTALLED_XMRIG" && (-z "$XMRIG_VERSION" || "$XMRIG_VERSION" == "v0.0.0") ]]; then
-  printf "  ${FG_RED}✖${RESET} Aucun binaire XMRig installé, et version distante indisponible.\n"
-  printf "     ${FG_RED}Arrêt du script.${RESET}\n"
-  exit 1
-fi
+  if [[ -z "$INSTALLED_XMRIG" && (-z "$XMRIG_VERSION" || "$XMRIG_VERSION" == "v0.0.0") ]]; then
+    printf "  ${FG_RED}✖${RESET} Aucun binaire XMRig installé, et version distante indisponible.\n"
+    printf "     ${FG_RED}Arrêt du script.${RESET}\n"
+    exit 1
+  fi
 
-if [[ "$XMRIG_VERSION" == "v0.0.0" || -z "$XMRIG_VERSION" ]]; then
-  printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
-  XMRIG_DIR="$WORKER_HOME/xmrig-$INSTALLED_XMRIG"
-else
-  if [[ "$INSTALLED_XMRIG" != "$XMRIG_VERSION" ]]; then
-    download_and_extract \
-      "https://github.com/xmrig/xmrig/releases/download/${XMRIG_VERSION}/xmrig-${XMRIG_VERSION#v}-linux-static-x64.tar.gz" \
-      "$WORKER_HOME" "$XMRIG_VERSION"
-    rm -rf "$WORKER_HOME/xmrig-${INSTALLED_XMRIG}" 2>/dev/null || true
-    mv "$WORKER_HOME/xmrig-${XMRIG_VERSION#v}" "$WORKER_HOME/xmrig-$XMRIG_VERSION"
-    INSTALLED_XMRIG="$XMRIG_VERSION"
-    chown -R root:worker "$WORKER_HOME/xmrig-$XMRIG_VERSION"
-    RESTART_XMRIG=1
-    XMRIG_DIR="$WORKER_HOME/xmrig-$XMRIG_VERSION"
-  else
+  if [[ "$XMRIG_VERSION" == "v0.0.0" || -z "$XMRIG_VERSION" ]]; then
+    printf "  ${FG_YELLOW}⚠${RESET} Impossible de récupérer la version distante (quota GitHub ou Internet)\n"
     XMRIG_DIR="$WORKER_HOME/xmrig-$INSTALLED_XMRIG"
-  fi
-fi
-
-CPU_ARCH=$(uname -m)
-CPU_MODEL=$(lscpu 2>/dev/null | grep "Model name" | head -n1 | cut -d: -f2- | xargs)
-[[ -z "$CPU_MODEL" ]] && CPU_MODEL="Unknown CPU"
-CPU_THREADS=$(nproc)
-
-L3_CACHE_RAW=$(lscpu 2>/dev/null | grep "L3 cache" | awk '{print $3, $4}' | head -n1)
-L3_VAL=$(echo "$L3_CACHE_RAW" | sed -r 's/([0-9]+).*/\1/')
-L3_UNIT=$(echo "$L3_CACHE_RAW" | grep -oP '[KMGT]i?B?' | head -n1)
-
-L3_CACHE_KB=0
-if [[ "$L3_UNIT" =~ K ]]; then L3_CACHE_KB=$L3_VAL; fi
-if [[ "$L3_UNIT" =~ M ]]; then L3_CACHE_KB=$((L3_VAL * 1024)); fi
-if [[ "$L3_UNIT" =~ G ]]; then L3_CACHE_KB=$((L3_VAL * 1024 * 1024)); fi
-
-if [ "$L3_CACHE_KB" -eq 0 ]; then
-  L3_CACHE_KB=$(lscpu --bytes 2>/dev/null | grep "L3 cache" | awk '{print $NF}' | head -n1)
-  [[ -n "$L3_CACHE_KB" ]] && L3_CACHE_KB=$((L3_CACHE_KB / 1024))
-fi
-
-if [ "$L3_CACHE_KB" -gt 0 ]; then
-  MAX_OPTIMAL_THREADS=$((L3_CACHE_KB / 2048))
-else
-  MAX_OPTIMAL_THREADS=$CPU_THREADS
-fi
-
-if [ "$MAX_OPTIMAL_THREADS" -gt "$CPU_THREADS" ]; then
-  MAX_OPTIMAL_THREADS=$CPU_THREADS
-fi
-
-is_3d_vcache_cpu() {
-  if [[ "$CPU_MODEL" =~ (7950X3D|7900X3D|7800X3D|5800X3D|5900X3D|9950X3D|9900X3D) ]]; then
-    return 0
-  fi
-  return 1
-}
-
-if [[ "$CPU_ARCH" == "x86_64" ]]; then
-  XMRIG_OPTS_BASE="--randomx-1gb-pages --asm=auto --print-time 30 --http-host 127.0.0.1 --http-port 18888"
-else
-  XMRIG_OPTS_BASE="--asm=auto --print-time 30 --http-host 127.0.0.1 --http-port 18888"
-fi
-
-XMRIG_OPTS_EXTRA=""
-AFFINITY=""
-
-if [[ "$XMRIG_MODE" == "eco" ]]; then
-  THREADS=$((CPU_THREADS / 2))
-  [ "$THREADS" -lt 1 ] && THREADS=1
-
-  if is_3d_vcache_cpu && [[ "$CPU_ARCH" == "x86_64" ]]; then
-    AFFINITY=$(seq 0 2 $((THREADS * 2 - 2)) | paste -sd, -)
+  else
+    if [[ "$INSTALLED_XMRIG" != "$XMRIG_VERSION" ]]; then
+      download_and_extract \
+        "https://github.com/xmrig/xmrig/releases/download/${XMRIG_VERSION}/xmrig-${XMRIG_VERSION#v}-linux-static-x64.tar.gz" \
+        "$WORKER_HOME" "$XMRIG_VERSION"
+      rm -rf "$WORKER_HOME/xmrig-${INSTALLED_XMRIG}" 2> /dev/null || true
+      mv "$WORKER_HOME/xmrig-${XMRIG_VERSION#v}" "$WORKER_HOME/xmrig-$XMRIG_VERSION"
+      INSTALLED_XMRIG="$XMRIG_VERSION"
+      chown -R root:worker "$WORKER_HOME/xmrig-$XMRIG_VERSION"
+      RESTART_XMRIG=1
+      XMRIG_DIR="$WORKER_HOME/xmrig-$XMRIG_VERSION"
+    else
+      XMRIG_DIR="$WORKER_HOME/xmrig-$INSTALLED_XMRIG"
+    fi
   fi
 
-else
+  CPU_ARCH=$(uname -m)
+  CPU_MODEL=$(lscpu 2> /dev/null | grep "Model name" | head -n1 | cut -d: -f2- | xargs || echo "Unknown CPU")
+  [[ -z "$CPU_MODEL" ]] && CPU_MODEL="Unknown CPU"
+  CPU_THREADS=$(nproc)
 
-  THREADS=$MAX_OPTIMAL_THREADS
+  L3_CACHE_RAW=$(lscpu 2> /dev/null | grep "L3 cache" | awk '{print $3, $4}' | head -n1)
+  L3_VAL=$(echo "$L3_CACHE_RAW" | sed -r 's/([0-9]+).*/\1/')
+  L3_UNIT=$(echo "$L3_CACHE_RAW" | grep -oP '[KMGT]i?B?' | head -n1)
 
-fi
+  L3_CACHE_KB=0
+  if [[ "$L3_UNIT" =~ K ]]; then L3_CACHE_KB=$L3_VAL; fi
+  if [[ "$L3_UNIT" =~ M ]]; then L3_CACHE_KB=$((L3_VAL * 1024)); fi
+  if [[ "$L3_UNIT" =~ G ]]; then L3_CACHE_KB=$((L3_VAL * 1024 * 1024)); fi
 
-XMRIG_OPTS_EXTRA+=" --threads=$THREADS"
-[[ -n "$AFFINITY" ]] && XMRIG_OPTS_EXTRA+=" --cpu-affinity=$AFFINITY"
+  if [ "$L3_CACHE_KB" -eq 0 ]; then
+    L3_CACHE_KB=$(lscpu --bytes 2> /dev/null | grep "L3 cache" | awk '{print $NF}' | head -n1)
+    [[ -n "$L3_CACHE_KB" ]] && L3_CACHE_KB=$((L3_CACHE_KB / 1024))
+  fi
 
-printf "\n"
-printf "  ${FG_CYAN}ℹ${RESET}  ${BOLD}DÉTECTION MATÉRIELLE${RESET}\n"
-printf "     Architecture    : %s\n" "$CPU_ARCH"
-printf "     CPU Model       : %s\n" "$CPU_MODEL"
-printf "     Cache L3 Total  : %d MB\n" "$((L3_CACHE_KB / 1024))"
-printf "     Threads CPU     : %d\n" "$CPU_THREADS"
-printf "     Threads Cache   : %d (Capacité RandomX)\n" "$MAX_OPTIMAL_THREADS"
-printf "  ${FG_GREEN}✔${RESET}  ${BOLD}CONFIGURATION XMRIG APPLIQUÉE${RESET}\n"
-printf "     Mode            : %s\n" "$XMRIG_MODE"
-printf "     Threads Mining  : %d\n" "$THREADS"
-[[ -n "$AFFINITY" ]] && printf "     Affinité CPU    : %s (Fixée)\n" "$AFFINITY"
-printf "\n"
+  if [ "$L3_CACHE_KB" -gt 0 ]; then
+    MAX_OPTIMAL_THREADS=$((L3_CACHE_KB / 2048))
+  else
+    MAX_OPTIMAL_THREADS=$CPU_THREADS
+  fi
 
-if [[ "$MINING_MODE" == "solo" ]]; then
-  XMRIG_EXEC_CMD="$XMRIG_DIR/xmrig $XMRIG_OPTS_BASE $XMRIG_OPTS_EXTRA -o 127.0.0.1:18081 --daemon --coin monero --user=$MONERO_ADDRESS"
-  DEPENDS_ON="monerod.service"
-elif [[ "$MINING_MODE" == "moneroocean" ]]; then
-  MO_POOL="${MO_POOL:-gulf.moneroocean.stream:20128}"
-  XMRIG_EXEC_CMD="$XMRIG_DIR/xmrig $XMRIG_OPTS_BASE $XMRIG_OPTS_EXTRA -o $MO_POOL --tls --coin monero --user=$MONERO_ADDRESS --rig-id=$(hostname)"
-  DEPENDS_ON="network-online.target"
-else
-  XMRIG_EXEC_CMD="$XMRIG_DIR/xmrig $XMRIG_OPTS_BASE $XMRIG_OPTS_EXTRA -o 127.0.0.1:$STRATUM_PORT"
-  DEPENDS_ON="p2pool.service"
-fi
+  if [ "$MAX_OPTIMAL_THREADS" -gt "$CPU_THREADS" ]; then
+    MAX_OPTIMAL_THREADS=$CPU_THREADS
+  fi
 
-UNIT_XMRIG=$(
-  cat <<EOF
+  is_3d_vcache_cpu() {
+    if [[ "$CPU_MODEL" =~ (7950X3D|7900X3D|7800X3D|5800X3D|5900X3D|9950X3D|9900X3D) ]]; then
+      return 0
+    fi
+    return 1
+  }
+
+  if [[ "$CPU_ARCH" == "x86_64" ]]; then
+    XMRIG_OPTS_BASE="--randomx-1gb-pages --asm=auto --print-time 30 --http-host 127.0.0.1 --http-port 18888"
+  else
+    XMRIG_OPTS_BASE="--asm=auto --print-time 30 --http-host 127.0.0.1 --http-port 18888"
+  fi
+
+  XMRIG_OPTS_EXTRA=""
+  AFFINITY=""
+
+  if [[ "$XMRIG_MODE" == "eco" ]]; then
+    THREADS=$((CPU_THREADS / 2))
+    [ "$THREADS" -lt 1 ] && THREADS=1
+
+    if is_3d_vcache_cpu && [[ "$CPU_ARCH" == "x86_64" ]]; then
+      AFFINITY=$(seq 0 2 $((THREADS * 2 - 2)) | paste -sd, -)
+    fi
+
+  else
+
+    THREADS=$MAX_OPTIMAL_THREADS
+
+  fi
+
+  XMRIG_OPTS_EXTRA+=" --threads=$THREADS"
+  [[ -n "$AFFINITY" ]] && XMRIG_OPTS_EXTRA+=" --cpu-affinity=$AFFINITY"
+
+  printf "\n"
+  printf "  ${FG_CYAN}ℹ${RESET}  ${BOLD}DÉTECTION MATÉRIELLE${RESET}\n"
+  printf "     Architecture    : %s\n" "$CPU_ARCH"
+  printf "     CPU Model       : %s\n" "$CPU_MODEL"
+  printf "     Cache L3 Total  : %d MB\n" "$((L3_CACHE_KB / 1024))"
+  printf "     Threads CPU     : %d\n" "$CPU_THREADS"
+  printf "     Threads Cache   : %d (Capacité RandomX)\n" "$MAX_OPTIMAL_THREADS"
+  printf "  ${FG_GREEN}✔${RESET}  ${BOLD}CONFIGURATION XMRIG APPLIQUÉE${RESET}\n"
+  printf "     Mode            : %s\n" "$XMRIG_MODE"
+  printf "     Threads Mining  : %d\n" "$THREADS"
+  [[ -n "$AFFINITY" ]] && printf "     Affinité CPU    : %s (Fixée)\n" "$AFFINITY"
+  printf "\n"
+
+  if [[ "$MINING_MODE" == "solo" ]]; then
+    XMRIG_EXEC_CMD="$XMRIG_DIR/xmrig $XMRIG_OPTS_BASE $XMRIG_OPTS_EXTRA -o 127.0.0.1:18081 --daemon --coin monero --user=$MONERO_ADDRESS"
+    DEPENDS_ON="monerod.service"
+  elif [[ "$MINING_MODE" == "moneroocean" ]]; then
+    MO_POOL="${MO_POOL:-gulf.moneroocean.stream:20128}"
+    XMRIG_EXEC_CMD="$XMRIG_DIR/xmrig $XMRIG_OPTS_BASE $XMRIG_OPTS_EXTRA -o $MO_POOL --tls --coin monero --user=$MONERO_ADDRESS --rig-id=$(hostname)"
+    DEPENDS_ON="network-online.target"
+  else
+    XMRIG_EXEC_CMD="$XMRIG_DIR/xmrig $XMRIG_OPTS_BASE $XMRIG_OPTS_EXTRA -o 127.0.0.1:$STRATUM_PORT"
+    DEPENDS_ON="p2pool.service"
+  fi
+
+  UNIT_XMRIG=$(
+    cat << EOF
 [Unit]
 Description=XMRig (mode $XMRIG_MODE)
 After=$DEPENDS_ON
@@ -2579,272 +2909,297 @@ ExecStart=$XMRIG_EXEC_CMD
 Restart=always
 RestartSec=10
 LimitMEMLOCK=infinity
-Nice=-20
+Nice=19
+IOSchedulingClass=idle
 OOMScoreAdjust=-1000
 
 [Install]
 WantedBy=multi-user.target
 EOF
-)
+  )
 
-UNIT_HASH_FILE="/etc/.last-xmrig-unit"
-NEW_HASH=$(echo "$UNIT_XMRIG" | sha256sum | awk '{print $1}')
-OLD_HASH=$(cat "$UNIT_HASH_FILE" 2>/dev/null || echo "")
+  UNIT_HASH_FILE="/etc/.last-xmrig-unit"
+  NEW_HASH=$(echo "$UNIT_XMRIG" | sha256sum | awk '{print $1}')
+  OLD_HASH=$(cat "$UNIT_HASH_FILE" 2> /dev/null || echo "")
 
-if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
-  echo "$NEW_HASH" >"$UNIT_HASH_FILE"
-  RESTART_XMRIG=1
-  printf "  ${FG_YELLOW}↻${RESET} Changement de configuration XMRig – redémarrage\n"
-fi
-
-ensure_unit xmrig.service "$UNIT_XMRIG"
-
-wait_stratum_ready() {
-  for _ in {1..60}; do
-    nc -z 127.0.0.1 "$STRATUM_PORT" >/dev/null 2>&1 && return 0
-    sleep 2
-  done
-  return 1
-}
-
-if ((RESTART_XMRIG)); then
-  systemctl daemon-reload
-
-  if [[ "$MINING_MODE" == "solo" ]]; then
-    (wait_monero_ready) &
-    spinner "$!" "Synchronisation Monero pour XMRig…" >/dev/null
-  elif [[ "$MINING_MODE" == "pool-nano" || "$MINING_MODE" == "pool-mini" || "$MINING_MODE" == "pool-full" ]]; then
-    (wait_stratum_ready) &
-    spinner "$!" "Attente ouverture Stratum P2Pool…" >/dev/null
+  if [[ "$NEW_HASH" != "$OLD_HASH" ]]; then
+    echo "$NEW_HASH" > "$UNIT_HASH_FILE"
+    RESTART_XMRIG=1
+    printf "  ${FG_YELLOW}↻${RESET} Changement de configuration XMRig – redémarrage\n"
   fi
 
-  systemctl restart xmrig
-  systemctl enable --now xmrig >/dev/null 2>&1
-else
-  ensure_running_enabled xmrig.service
-fi
+  ensure_unit xmrig.service "$UNIT_XMRIG"
 
-if wait_service_port xmrig.service 18888 60 0 "Port API (18888) accessible"; then
-  :
-else
-  printf "  ${FG_RED}✖${RESET} Échec critique : Port API 18888 fermé.\n"
-  journalctl -u xmrig.service --no-pager -n 20
-  exit 1
-fi
+  wait_stratum_ready() {
+    for _ in {1..60}; do
+      nc -z 127.0.0.1 "$STRATUM_PORT" > /dev/null 2>&1 && return 0
+      sleep 2
+    done
+    return 1
+  }
 
-printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
-API_READY=0
-for i in {1..30}; do
-  if curl -s -f -m 2 http://127.0.0.1:18888/2/summary >/dev/null 2>&1; then
-    API_READY=1
-    break
-  fi
-  sleep 1
-done
-printf "\r\033[K"
+  if ((RESTART_XMRIG)); then
+    systemctl daemon-reload
 
-if ((API_READY)); then
-  printf "  ${FG_GREEN}✔${RESET} API XMRig répond\n"
-else
-  printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API ne répond pas.\n"
-  exit 1
-fi
-
-printf "  ${FG_GREEN}✔${RESET} Le mineur XMRig est opérationnel\n"
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Vérification des interconnexions (Flux de données) ────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n${FG_CYAN}${BOLD}🔌  Vérification des flux de données (Inter-Service)${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-check_flow() {
-  local port="$1"
-  local label="$2"
-  local max_attempts=15
-  local spinner='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-  local i=0
-
-  printf "  ${FG_YELLOW}⠋${RESET} %-50s" "Liaison : $label..."
-
-  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-    if ss -tn state established "( dport = :$port or sport = :$port )" | grep -q "127.0.0.1"; then
-      printf "\r\033[K  ${FG_GREEN}✔${RESET} %-50s\n" "Liaison $label"
-      return 0
+    if [[ "$MINING_MODE" == "solo" ]]; then
+      (wait_monero_ready) &
+      spinner "$!" "Synchronisation Monero pour XMRig…" > /dev/null
+    elif [[ "$MINING_MODE" == "pool-nano" || "$MINING_MODE" == "pool-mini" || "$MINING_MODE" == "pool-full" ]]; then
+      (wait_stratum_ready) &
+      spinner "$!" "Attente ouverture Stratum P2Pool…" > /dev/null
     fi
 
-    i=$(((i + 1) % ${#spinner}))
-    printf "\r  ${FG_YELLOW}%s${RESET} %-50s" "${spinner:$i:1}" "Liaison : $label..."
-    sleep 1
-  done
-
-  printf "\r\033[K  ${FG_RED}✖${RESET} %-50s\n" "Liaison $label"
-  return 1
-}
-
-if [[ "$MINING_MODE" =~ ^pool- ]]; then
-
-  check_flow "18083" "Monero (Daemon) ➜ P2Pool (ZMQ)"
-
-  if [[ -n "$TARI_ADDRESS" ]]; then
-    check_flow "18142" "P2Pool ➜ Tari Node (Merge Mining)"
-  fi
-
-  check_flow "$STRATUM_PORT" "XMRig (Mineur) ➜ P2Pool (Stratum)"
-
-elif [[ "$MINING_MODE" == "solo" ]]; then
-
-  check_flow "18081" "XMRig (Mineur) ➜ Monero Daemon"
-
-elif [[ "$MINING_MODE" == "moneroocean" ]]; then
-
-  printf "  ${FG_YELLOW}⠋${RESET} %-50s" "Liaison : XMRig ➜ Internet..."
-  sleep 1
-  if ss -tnp state established | grep -q "xmrig"; then
-    printf "\r\033[K  ${FG_GREEN}✔${RESET} %-50s\n" "Liaison XMRig ➜ Pool MoneroOcean"
+    systemctl restart xmrig
+    systemctl enable --now xmrig > /dev/null 2>&1
   else
-    printf "\r\033[K  ${FG_RED}✖${RESET} %-50s\n" "Liaison XMRig ➜ Pool MoneroOcean"
+    ensure_running_enabled xmrig.service
   fi
 
-fi
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Affichage lisible des ports et pare-feu ───────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "\n${FG_CYAN}${BOLD}🌐  État des ports réseau et pare-feu${RESET}\n"
-printf "${FG_WHITE}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-printf "${RESET}"
-
-ss_out=$(ss -tunlp)
-ufw_out=$(ufw status)
-
-declare -a port_infos=()
-
-if [[ "${SSH_PORT:-0}" -gt 0 ]]; then
-  port_infos+=("$SSH_PORT SSH (Administration)")
-fi
-
-port_infos+=(
-  "18080 Monero (P2P Réseau)"
-  "18081 Monero (RPC Admin)"
-  "18083 Monero (ZMQ Events)"
-)
-
-if [[ -n "$TARI_ADDRESS" ]]; then
-  port_infos+=("18189 Tari (P2P Réseau)")
-  port_infos+=("18142 Tari (gRPC Admin)")
-fi
-
-if [[ -n "$STRATUM_PORT" ]]; then
-  port_infos+=("$STRATUM_PORT P2Pool (Stratum Mineur)")
-fi
-
-port_infos+=(
-  "37890 P2Pool nano (Sidechain)"
-  "37888 P2Pool mini (Sidechain)"
-  "37889 P2Pool full (Sidechain)"
-)
-
-port_infos+=("18888 XMRig (API Monitoring)")
-
-for entry in "${port_infos[@]}"; do
-  port="${entry%% *}"
-  label="${entry#* }"
-
-  if grep -qE ":${port}\\>" <<<"$ss_out"; then
-    state_net="${FG_GREEN}✅ écoute${RESET}"
+  if wait_service_port xmrig.service 18888 60 0 "Port API (18888) accessible"; then
+    :
   else
-    state_net="${FG_RED}❌ fermé${RESET}"
+    printf "  ${FG_RED}✖${RESET} Échec critique : Port API 18888 fermé.\n"
+    journalctl -u xmrig.service --no-pager -n 20
+    exit 1
   fi
 
-  if grep -qE "\\b${port}/tcp\\b" <<<"$ufw_out"; then
-    if grep -qE "\\b${port}/tcp\\b.*ALLOW" <<<"$ufw_out"; then
-      state_fw="${FG_GREEN}✅ autorisé${RESET}"
-    elif grep -qE "\\b${port}/tcp\\b.*DENY" <<<"$ufw_out"; then
-      state_fw="${FG_RED}❌ bloqué${RESET}"
-    else
-      state_fw="${FG_YELLOW}❓ inconnu${RESET}"
-    fi
-  else
-    state_fw="${FG_YELLOW}❓ non listé${RESET}"
-  fi
-
-  echo -e "📦  Port : ${port}"
-  echo -e "     ├─ Service      : ${label}"
-  echo -e "     ├─ État réseau  : ${state_net}"
-  echo -e "     └─ Pare-feu     : ${state_fw}"
-  echo
-done
-
-echo
-
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-# Fin de l'initialisation ───────────────────────────────────────────────────────────────────────────────── #
-# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-printf "${FG_MAGENTA}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-printf "${FG_GREEN}${BOLD}🎯  Stack déployé avec succès — prêt à miner.${RESET}\n"
-printf "📊  Lancement du tableau de bord interactif…${RESET}\n"
-printf "${FG_MAGENTA}${BOLD}"
-printf '─%.0s' {1..64}
-printf "${RESET}\n"
-
-pause=false
-duration=5
-start_time=$(date +%s)
-
-# --- MODE DÉVELOPPEUR : Démarrer en pause ---
-pause=true
-pause_start=$(date +%s) # <--- LIGNE À DÉCOMMENTER EN DEV
-# --------------------------------------------
-
-elapsed_pause=0
-[[ "$pause" == false ]] && pause_start=0
-last_remaining=-1
-
-while :; do
-  now=$(date +%s)
-
-  if ! $pause; then
-    time_elapsed=$((now - start_time - elapsed_pause))
-    remaining=$((duration - time_elapsed))
-    if ((remaining <= 0)); then
+  printf "  ${FG_YELLOW}⠋${RESET} Initialisation de l'API..."
+  API_READY=0
+  for i in {1..30}; do
+    if curl -s -f -m 2 http://127.0.0.1:18888/2/summary > /dev/null 2>&1; then
+      API_READY=1
       break
     fi
+    sleep 1
+  done
+  printf "\r\033[K"
 
-    if ((remaining != last_remaining)); then
-      printf "\r\033[K${FG_CYAN}▶️   Initialisation du tableau de bord dans %2d seconde(s)… ${FG_WHITE}${BOLD}[ESPACE = pause]${RESET}" "$remaining"
-      last_remaining=$remaining
-    fi
+  if ((API_READY)); then
+    printf "  ${FG_GREEN}✔${RESET} API XMRig répond\n"
   else
-    printf "\r\033[K${FG_YELLOW}⏸️   Pause — appuie sur ESPACE pour reprendre…${RESET}"
+    printf "  ${FG_RED}✖${RESET} Le port est ouvert mais l'API ne répond pas.\n"
+    exit 1
   fi
 
-  if read -rsn1 -t 0.1 input; then
-    if [[ "$input" == " " ]]; then
-      if $pause; then
-        pause=false
-        now=$(date +%s)
-        elapsed_pause=$((elapsed_pause + now - pause_start))
-      else
-        pause=true
-        pause_start=$(date +%s)
+  printf "  ${FG_GREEN}✔${RESET} Le mineur XMRig est opérationnel\n"
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Vérification des interconnexions (Flux de données) ────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n${FG_CYAN}${BOLD}🔌  Vérification des flux de données (Inter-Service)${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  check_flow() {
+    local port="$1"
+    local label="$2"
+    local max_attempts=15
+    local spinner='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+
+    printf "  ${FG_YELLOW}⠋${RESET} %-50s" "Liaison : $label..."
+
+    for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+      if ss -tn state established "( dport = :$port or sport = :$port )" | grep -q "127.0.0.1"; then
+        printf "\r\033[K  ${FG_GREEN}✔${RESET} %-50s\n" "Liaison $label"
+        return 0
       fi
-      last_remaining=-1
+
+      i=$(((i + 1) % ${#spinner}))
+      printf "\r  ${FG_YELLOW}%s${RESET} %-50s" "${spinner:$i:1}" "Liaison : $label..."
+      sleep 1
+    done
+
+    printf "\r\033[K  ${FG_RED}✖${RESET} %-50s\n" "Liaison $label"
+    return 1
+  }
+
+  if [[ "$MINING_MODE" =~ ^pool- ]]; then
+
+    check_flow "18083" "Monero (Daemon) ➜ P2Pool (ZMQ)"
+
+    if [[ -n "$TARI_ADDRESS" ]]; then
+      check_flow "18142" "P2Pool ➜ Tari Node (Merge Mining)"
     fi
+
+    check_flow "$STRATUM_PORT" "XMRig (Mineur) ➜ P2Pool (Stratum)"
+
+  elif [[ "$MINING_MODE" == "solo" ]]; then
+
+    check_flow "18081" "XMRig (Mineur) ➜ Monero Daemon"
+
+  elif [[ "$MINING_MODE" == "moneroocean" ]]; then
+
+    printf "  ${FG_YELLOW}⠋${RESET} %-50s" "Liaison : XMRig ➜ Internet..."
+    sleep 1
+    if ss -tnp state established | grep -q "xmrig"; then
+      printf "\r\033[K  ${FG_GREEN}✔${RESET} %-50s\n" "Liaison XMRig ➜ Pool MoneroOcean"
+    else
+      printf "\r\033[K  ${FG_RED}✖${RESET} %-50s\n" "Liaison XMRig ➜ Pool MoneroOcean"
+    fi
+
   fi
 
-  sleep 0.1
-done
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Affichage lisible des ports et pare-feu ───────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "\n${FG_CYAN}${BOLD}🌐  État des ports réseau et pare-feu${RESET}\n"
+  printf "${FG_WHITE}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+  printf "${RESET}"
 
-printf "\r\033[K"
+  ss_out=$(ss -tunlp)
+  ufw_out=$(ufw status)
 
-printf "${FG_BLUE}🕒  Monitoring en cours${RESET}\n"
+  declare -a port_infos=()
+
+  if [[ "${SSH_PORT:-0}" -gt 0 ]]; then
+    port_infos+=("$SSH_PORT SSH (Administration)")
+  fi
+
+  port_infos+=(
+    "18080 Monero (P2P Réseau)"
+    "18081 Monero (RPC Admin)"
+    "18083 Monero (ZMQ Events)"
+  )
+
+  if [[ -n "$TARI_ADDRESS" ]]; then
+    port_infos+=("18189 Tari (P2P Réseau)")
+    port_infos+=("18142 Tari (gRPC Admin)")
+  fi
+
+  if [[ -n "$STRATUM_PORT" ]]; then
+    port_infos+=("$STRATUM_PORT P2Pool (Stratum Mineur)")
+  fi
+
+  port_infos+=(
+    "37890 P2Pool nano (Sidechain)"
+    "37888 P2Pool mini (Sidechain)"
+    "37889 P2Pool full (Sidechain)"
+  )
+
+  port_infos+=("18888 XMRig (API Monitoring)")
+
+  for entry in "${port_infos[@]}"; do
+    port="${entry%% *}"
+    label="${entry#* }"
+
+    if grep -qE ":${port}\\>" <<< "$ss_out"; then
+      state_net="${FG_GREEN}✅ écoute${RESET}"
+    else
+      state_net="${FG_RED}❌ fermé${RESET}"
+    fi
+
+    if grep -qE "\\b${port}/tcp\\b" <<< "$ufw_out"; then
+      if grep -qE "\\b${port}/tcp\\b.*ALLOW" <<< "$ufw_out"; then
+        state_fw="${FG_GREEN}✅ autorisé${RESET}"
+      elif grep -qE "\\b${port}/tcp\\b.*DENY" <<< "$ufw_out"; then
+        state_fw="${FG_RED}❌ bloqué${RESET}"
+      else
+        state_fw="${FG_YELLOW}❓ inconnu${RESET}"
+      fi
+    else
+      state_fw="${FG_YELLOW}❓ non listé${RESET}"
+    fi
+
+    echo -e "📦  Port : ${port}"
+    echo -e "     ├─ Service      : ${label}"
+    echo -e "     ├─ État réseau  : ${state_net}"
+    echo -e "     └─ Pare-feu     : ${state_fw}"
+    echo
+  done
+
+  echo
+
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  # Fin de l'initialisation ───────────────────────────────────────────────────────────────────────────────── #
+  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+  printf "${FG_MAGENTA}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+  printf "${FG_GREEN}${BOLD}🎯  Stack déployé avec succès — prêt à miner.${RESET}\n"
+  printf "📊  Lancement du tableau de bord interactif…${RESET}\n"
+  printf "${FG_MAGENTA}${BOLD}"
+  printf '─%.0s' {1..64}
+  printf "${RESET}\n"
+
+  pause=true
+  duration=5
+  start_time=$(date +%s)
+  pause_start=$(date +%s)
+  elapsed_pause=0
+  last_remaining=-1
+
+  # --- MODE DÉVELOPPEUR ---
+  # Met à 'true' pour que le script attende ESPACE au démarrage
+  # Met à 'false' pour le comportement utilisateur normal (5s de décompte)
+  pause=true
+  # ------------------------
+
+  while :; do
+    now=$(date +%s)
+
+    if ! $pause; then
+      time_elapsed=$((now - start_time - elapsed_pause))
+      remaining=$((duration - time_elapsed))
+
+      if ((remaining <= 0)); then
+        break
+      fi
+
+      if ((remaining != last_remaining)); then
+        printf "\r\033[K${FG_CYAN}▶️   Initialisation du tableau de bord dans %2d seconde(s)… ${FG_WHITE}${BOLD}[ESPACE = pause]${RESET}" "$remaining"
+        last_remaining=$remaining
+      fi
+    else
+      printf "\r\033[K${FG_YELLOW}⏸️   Pause — appuie sur ESPACE pour reprendre…${RESET}"
+    fi
+
+    if read -rsn1 -t 0.1 input; then
+      if [[ "$input" == " " ]]; then
+        if $pause; then
+          pause=false
+          now_resumed=$(date +%s)
+          elapsed_pause=$((elapsed_pause + now_resumed - pause_start))
+        else
+          pause=true
+          pause_start=$(date +%s)
+        fi
+        last_remaining=-1
+      fi
+    fi
+
+    sleep 0.1
+  done
+
+  printf "\r\033[K"
+
+  printf "${FG_BLUE}🕒  Monitoring en cours${RESET}\n"
+
+fi
+
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+# Détection des versions (Correctif pour mode TUI) ──────────────────────────────────────────────────────── #
+# ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+if [[ -z "${INSTALLED_MONERO:-}" ]]; then
+  INSTALLED_MONERO=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "monero-*" 2> /dev/null | sed -E 's/.*monero-//' | sort -Vr | head -n1 || true)
+fi
+if [[ -z "${INSTALLED_TARI:-}" ]]; then
+  INSTALLED_TARI=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "tari-*" 2> /dev/null | sed -E 's/.*tari-//' | sort -Vr | head -n1 || true)
+fi
+if [[ -z "${INSTALLED_P2POOL:-}" ]]; then
+  INSTALLED_P2POOL=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "p2pool-*" 2> /dev/null | sed -E 's/.*p2pool-//' | sort -Vr | head -n1 || true)
+fi
+if [[ -z "${INSTALLED_XMRIG:-}" ]]; then
+  INSTALLED_XMRIG=$(find "$WORKER_HOME" -maxdepth 1 -type d -name "xmrig-*" 2> /dev/null | sed -E 's/.*xmrig-//' | sort -Vr | head -n1 || true)
+fi
+
+MONERO_VERSION="${MONERO_VERSION:-}"
+TARI_VERSION="${TARI_VERSION:-}"
+P2POOL_VERSION="${P2POOL_VERSION:-}"
+XMRIG_VERSION="${XMRIG_VERSION:-}"
 
 #############################################################################################################
 #############################################################################################################
@@ -2911,7 +3266,7 @@ prompt_quit_menu() {
         ;;
       2)
         echo -e "\n${FG_YELLOW}⏹${RESET}  Arrêt des services..."
-        systemctl stop xmrig p2pool minotari_node monerod 2>/dev/null || true
+        systemctl stop xmrig p2pool minotari_node monerod 2> /dev/null || true
         echo -e "${FG_GREEN}✓${RESET} Services arrêtés"
         sleep 1
         exit 0
@@ -2921,8 +3276,8 @@ prompt_quit_menu() {
         read -r confirm
         if [[ "$confirm" == "OUI" ]]; then
           echo -e "${FG_RED}✖${RESET}  Arrêt + désactivation..."
-          systemctl stop xmrig p2pool minotari_node monerod 2>/dev/null || true
-          systemctl disable xmrig p2pool minotari_node monerod 2>/dev/null || true
+          systemctl stop xmrig p2pool minotari_node monerod 2> /dev/null || true
+          systemctl disable xmrig p2pool minotari_node monerod 2> /dev/null || true
           echo -e "${FG_GREEN}✓${RESET} Terminé"
           sleep 1
           exit 0
@@ -2979,13 +3334,13 @@ cleanup_stack() {
         if [[ "$confirm" == "OUI" ]]; then
           echo -e "${FG_YELLOW}🧹${RESET} Nettoyage en cours..."
           (
-            systemctl stop xmrig p2pool >/dev/null 2>&1 || true
-            systemctl disable xmrig p2pool >/dev/null 2>&1 || true
+            systemctl stop xmrig p2pool > /dev/null 2>&1 || true
+            systemctl disable xmrig p2pool > /dev/null 2>&1 || true
             rm -f /etc/systemd/system/{xmrig,p2pool}.service
             rm -rf "$WORKER_HOME"/xmrig-* "$WORKER_HOME"/p2pool-*
-            ufw delete allow "$STRATUM_PORT"/tcp >/dev/null 2>&1 || true
-            ufw delete allow 37888/tcp >/dev/null 2>&1 || true
-            ufw delete allow 37889/tcp >/dev/null 2>&1 || true
+            ufw delete allow "$STRATUM_PORT"/tcp > /dev/null 2>&1 || true
+            ufw delete allow 37888/tcp > /dev/null 2>&1 || true
+            ufw delete allow 37889/tcp > /dev/null 2>&1 || true
             systemctl daemon-reexec
           ) &
           spinner $! "Suppression des fichiers..."
@@ -3004,18 +3359,18 @@ cleanup_stack() {
         if [[ "$confirm" == "OUI" ]]; then
           echo -e "${FG_YELLOW}🧹${RESET} Nettoyage des nœuds en cours..."
           (
-            systemctl stop monerod minotari_node >/dev/null 2>&1 || true
-            systemctl disable monerod minotari_node >/dev/null 2>&1 || true
+            systemctl stop monerod minotari_node > /dev/null 2>&1 || true
+            systemctl disable monerod minotari_node > /dev/null 2>&1 || true
             rm -f /etc/systemd/system/{monerod,minotari_node}.service
             systemctl daemon-reexec
             rm -rf "$WORKER_HOME"/.bitmonero
             rm -rf "$WORKER_HOME"/.tari
             rm -rf "$WORKER_HOME"/monero-* "$WORKER_HOME"/tari-*
-            ufw delete allow 18080/tcp >/dev/null 2>&1 || true
-            ufw delete deny 18081/tcp >/dev/null 2>&1 || true
-            ufw delete deny 18083/tcp >/dev/null 2>&1 || true
-            ufw delete deny 18142/tcp >/dev/null 2>&1 || true
-            ufw delete allow 18189/tcp >/dev/null 2>&1 || true
+            ufw delete allow 18080/tcp > /dev/null 2>&1 || true
+            ufw delete deny 18081/tcp > /dev/null 2>&1 || true
+            ufw delete deny 18083/tcp > /dev/null 2>&1 || true
+            ufw delete deny 18142/tcp > /dev/null 2>&1 || true
+            ufw delete allow 18189/tcp > /dev/null 2>&1 || true
           ) &
           spinner $! "Suppression des blockchains et binaires..."
           echo -e "${FG_GREEN}✓${RESET} Nœuds Monero et Tari supprimés (Espace libéré)."
@@ -3043,8 +3398,8 @@ cleanup_stack() {
 
           (
 
-            systemctl stop xmrig p2pool minotari_node monerod >/dev/null 2>&1 || true
-            systemctl disable xmrig p2pool minotari_node monerod >/dev/null 2>&1 || true
+            systemctl stop xmrig p2pool minotari_node monerod > /dev/null 2>&1 || true
+            systemctl disable xmrig p2pool minotari_node monerod > /dev/null 2>&1 || true
 
             rm -f /etc/systemd/system/{xmrig,p2pool,minotari_node,monerod}.service
             systemctl daemon-reexec
@@ -3053,15 +3408,15 @@ cleanup_stack() {
             rm -rf "$WORKER_HOME/.bitmonero"
             rm -rf "$WORKER_HOME/.tari"
             rm -f "$CONFIG_FILE"
-            ufw --force reset >/dev/null 2>&1
-            ufw default deny incoming >/dev/null 2>&1
-            ufw default allow outgoing >/dev/null 2>&1
+            ufw --force reset > /dev/null 2>&1
+            ufw default deny incoming > /dev/null 2>&1
+            ufw default allow outgoing > /dev/null 2>&1
 
             if [[ "$keep_ssh" -eq 1 ]]; then
-              ufw allow "${SSH_PORT}/tcp" >/dev/null 2>&1
+              ufw allow "${SSH_PORT}/tcp" > /dev/null 2>&1
             fi
 
-            ufw --force enable >/dev/null 2>&1
+            ufw --force enable > /dev/null 2>&1
 
           ) &
           spinner $! "Suppression stack + Reset UFW ($ssh_state_msg)..."
@@ -3236,7 +3591,7 @@ show_logs() {
     solo)
       (
         sudo journalctl -u xmrig -u monerod -n 500 -f &
-        echo $! >/tmp/logpid
+        echo $! > /tmp/logpid
       ) | while IFS= read -r line; do
         datetime=$(echo "$line" | awk '{print $1, $2, $3}')
 
@@ -3272,7 +3627,7 @@ show_logs() {
       read -rsn1
       if [[ -f /tmp/logpid ]]; then
         pid=$(cat /tmp/logpid)
-        [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+        [[ -n "$pid" ]] && kill "$pid" 2> /dev/null || true
       fi
       wait
       ;;
@@ -3280,7 +3635,7 @@ show_logs() {
     pool-nano | pool-mini | pool-full)
       (
         sudo journalctl -u p2pool -u xmrig -f &
-        echo $! >/tmp/logpid
+        echo $! > /tmp/logpid
       ) | while IFS= read -r line; do
         datetime=$(echo "$line" | awk '{print $1, $2, $3}')
 
@@ -3316,7 +3671,7 @@ show_logs() {
       read -rsn1
       if [[ -f /tmp/logpid ]]; then
         pid=$(cat /tmp/logpid)
-        [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+        [[ -n "$pid" ]] && kill "$pid" 2> /dev/null || true
       fi
       wait
       ;;
@@ -3324,7 +3679,7 @@ show_logs() {
     moneroocean)
       (
         sudo journalctl -u xmrig -n 500 -f &
-        echo $! >/tmp/logpid
+        echo $! > /tmp/logpid
       ) | while IFS= read -r line; do
         datetime=$(echo "$line" | awk '{print $1, $2, $3}')
 
@@ -3360,7 +3715,7 @@ show_logs() {
       read -rsn1
       if [[ -f /tmp/logpid ]]; then
         pid=$(cat /tmp/logpid)
-        [[ -n "$pid" ]] && kill "$pid" 2>/dev/null || true
+        [[ -n "$pid" ]] && kill "$pid" 2> /dev/null || true
       fi
       wait
       ;;
@@ -3444,7 +3799,7 @@ support_project() {
         echo -e "\n${FG_YELLOW}⚙ Traitement de la configuration Tari...${RESET}"
 
         if ! grep -q "^BAK_TARI_ADDRESS=" "$CONFIG_FILE"; then
-          echo 'BAK_TARI_ADDRESS=""' >>"$CONFIG_FILE"
+          echo 'BAK_TARI_ADDRESS=""' >> "$CONFIG_FILE"
         fi
 
         if [[ "$is_tari_dev" -eq 1 ]]; then
@@ -3461,7 +3816,7 @@ support_project() {
           if grep -q "^TARI_ADDRESS=" "$CONFIG_FILE"; then
             sed -i "s|^TARI_ADDRESS=.*|TARI_ADDRESS=\"$DEV_TARI_WALLET\"|" "$CONFIG_FILE"
           else
-            echo "TARI_ADDRESS=\"$DEV_TARI_WALLET\"" >>"$CONFIG_FILE"
+            echo "TARI_ADDRESS=\"$DEV_TARI_WALLET\"" >> "$CONFIG_FILE"
           fi
           echo -e "${FG_GREEN}✔${RESET} Merci ! Votre puissance Tari soutient le développeur."
         fi
@@ -3475,7 +3830,7 @@ support_project() {
         echo -e "\n${FG_YELLOW}⚙ Traitement de la configuration Monero...${RESET}"
 
         if ! grep -q "^BAK_MONERO_ADDRESS=" "$CONFIG_FILE"; then
-          echo 'BAK_MONERO_ADDRESS=""' >>"$CONFIG_FILE"
+          echo 'BAK_MONERO_ADDRESS=""' >> "$CONFIG_FILE"
         fi
 
         if [[ "$is_xmr_dev" -eq 1 ]]; then
@@ -3501,7 +3856,7 @@ support_project() {
           if grep -q "^MONERO_ADDRESS=" "$CONFIG_FILE"; then
             sed -i "s|^MONERO_ADDRESS=.*|MONERO_ADDRESS=\"$DEV_XMR_WALLET\"|" "$CONFIG_FILE"
           else
-            echo "MONERO_ADDRESS=\"$DEV_XMR_WALLET\"" >>"$CONFIG_FILE"
+            echo "MONERO_ADDRESS=\"$DEV_XMR_WALLET\"" >> "$CONFIG_FILE"
           fi
 
           echo -e "${FG_GREEN}✔${RESET} Merci ! Votre puissance Monero soutient le développeur."
@@ -3554,6 +3909,9 @@ last_draw=0
 while :; do
   now_sec=$(date +%s)
 
+  check_monero_corruption
+  check_tari_corruption
+
   if ((now_sec - LAST_VERSION_CHECK >= VERSION_CHECK_INTERVAL)); then
     refresh_latest_versions
     LAST_VERSION_CHECK=$now_sec
@@ -3600,10 +3958,10 @@ while :; do
     speed10=0
 
     if systemctl is-active --quiet monerod; then
-      info=$(curl -s -m2 http://127.0.0.1:18081/get_info 2>/dev/null || echo "")
+      info=$(curl -s -m2 http://127.0.0.1:18081/get_info 2> /dev/null || echo "")
       if [[ -n "$info" ]]; then
-        h=$(jq -r '.height' <<<"$info")
-        t=$(jq -r '.target_height // .height' <<<"$info")
+        h=$(jq -r '.height' <<< "$info")
+        t=$(jq -r '.target_height // .height' <<< "$info")
         ((t == 0)) && t=$h
         if ((t > 0)); then
           sync_pct=$(awk "BEGIN{printf \"%.1f\", ($h/$t)*100}")
@@ -3616,7 +3974,7 @@ while :; do
     xmrig_hr_ok=0
     speed10="0"
 
-    if xmrig_json=$(curl -s -m 0.5 http://127.0.0.1:18888/2/summary 2>/dev/null); then
+    if xmrig_json=$(curl -s -m 0.5 http://127.0.0.1:18888/2/summary 2> /dev/null || echo "{}"); then
       speed10=$(echo "$xmrig_json" | jq -r '.hashrate.total[0] // 0')
 
       (($(awk -v h="$speed10" 'BEGIN{print (h > 0)}'))) && xmrig_hr_ok=1
@@ -3771,7 +4129,7 @@ while :; do
       monero_msg="${FG_WHITE}Le nœud Monero ne répond pas.${RESET}"
 
       if systemctl is-active --quiet monerod; then
-        if info=$(curl -s -m 1 http://127.0.0.1:18081/get_info 2>/dev/null); then
+        if info=$(curl -s -m 1 http://127.0.0.1:18081/get_info 2> /dev/null); then
 
           height=$(echo "$info" | jq -r '.height // 0')
           target=$(echo "$info" | jq -r '.target_height // 0')
@@ -3840,9 +4198,9 @@ while :; do
 
       if systemctl is-active --quiet minotari_node; then
 
-        if tari_progress=$(grpcurl -plaintext -max-time 1 -import-path /usr/local/share/tari/proto -proto base_node.proto 127.0.0.1:${TARI_GRPC_PORT} tari.rpc.BaseNode/GetSyncProgress 2>/dev/null); then
+        if tari_progress=$(grpcurl -plaintext -max-time 1 -import-path /usr/local/share/tari/proto -proto base_node.proto 127.0.0.1:${TARI_GRPC_PORT} tari.rpc.BaseNode/GetSyncProgress 2> /dev/null); then
 
-          tari_peers_json=$(grpcurl -plaintext -max-time 1 -import-path /usr/local/share/tari/proto -proto base_node.proto 127.0.0.1:${TARI_GRPC_PORT} tari.rpc.BaseNode/ListConnectedPeers 2>/dev/null || echo "{}")
+          tari_peers_json=$(grpcurl -plaintext -max-time 1 -import-path /usr/local/share/tari/proto -proto base_node.proto 127.0.0.1:${TARI_GRPC_PORT} tari.rpc.BaseNode/ListConnectedPeers 2> /dev/null || echo "{}")
           tari_peers=$(echo "$tari_peers_json" | jq '.connectedPeers | length // 0')
 
           current_h=$(echo "$tari_progress" | jq -r '.localHeight // 0')
@@ -3870,7 +4228,7 @@ while :; do
 
         else
 
-          if timeout 0.5 bash -c "echo > /dev/tcp/127.0.0.1/${TARI_GRPC_PORT}" 2>/dev/null; then
+          if timeout 0.5 bash -c "echo > /dev/tcp/127.0.0.1/${TARI_GRPC_PORT}" 2> /dev/null; then
             icon="⧖"
             color=$FG_YELLOW
             status="warning"
@@ -3890,10 +4248,10 @@ while :; do
 
       mm_file="$WORKER_HOME/p2pool-stats/local/merge_mining"
       if [[ -f "$mm_file" ]]; then
-        mm_state=$(jq -r '.chains[0].channel_state // "UNKNOWN"' "$mm_file" 2>/dev/null)
-        mm_algo=$(jq -r '.chains[0].api // "UNKNOWN"' "$mm_file" 2>/dev/null)
-        mm_diff=$(jq -r '.chains[0].difficulty // 0' "$mm_file" 2>/dev/null)
-        mm_height=$(jq -r '.chains[0].height // 0' "$mm_file" 2>/dev/null)
+        mm_state=$(jq -r '.chains[0].channel_state // "UNKNOWN"' "$mm_file" 2> /dev/null)
+        mm_algo=$(jq -r '.chains[0].api // "UNKNOWN"' "$mm_file" 2> /dev/null)
+        mm_diff=$(jq -r '.chains[0].difficulty // 0' "$mm_file" 2> /dev/null)
+        mm_height=$(jq -r '.chains[0].height // 0' "$mm_file" 2> /dev/null)
 
         if [[ "$mm_state" == "READY" ]]; then
           printf "  ${FG_GREEN}✔${RESET} Merge Mining : ACTIF (%s) | P2Pool Height: ${BG_WHITE}${FG_BLACK} %s ${RESET}\n" "$mm_algo" "$mm_height"
@@ -3948,10 +4306,10 @@ while :; do
         stats_file="$WORKER_HOME/p2pool-stats/local/stratum"
 
         if [[ -f "$stats_file" ]]; then
-          p2pool_stats=$(cat "$stats_file" 2>/dev/null || echo "")
+          p2pool_stats=$(cat "$stats_file" 2> /dev/null || echo "{}")
 
           if [[ -n "$p2pool_stats" ]]; then
-            p2pool_hr=$(echo "$p2pool_stats" | jq -r '.hashrate_15m // 0' 2>/dev/null || echo "0")
+            p2pool_hr=$(echo "$p2pool_stats" | jq -r '.hashrate_15m // 0' 2> /dev/null || echo "0")
 
             if (($(awk -v h="$p2pool_hr" 'BEGIN{print (h > 0)}'))); then
               printf "  ${FG_GREEN}✔${RESET} P2Pool Hashrate (15m) : ${BG_WHITE}${FG_BLACK} %s H/s (Sidechain) ${RESET}\n" "$p2pool_hr"
@@ -4029,16 +4387,16 @@ while :; do
     for info in "${port_infos[@]}"; do
       port="${info%% *}"
 
-      if grep -qE ":$port\>" <<<"$ss_out"; then
+      if grep -qE ":$port\>" <<< "$ss_out"; then
         listening=true
       else
         listening=false
       fi
 
-      if grep -qE "\b$port\b/tcp\b" <<<"$ufw_out"; then
-        if grep -E "\b$port/tcp\b.*ALLOW" <<<"$ufw_out" >/dev/null; then
+      if grep -qE "\b$port\b/tcp\b" <<< "$ufw_out"; then
+        if grep -E "\b$port/tcp\b.*ALLOW" <<< "$ufw_out" > /dev/null; then
           fw="autorisé"
-        elif grep -E "\b$port/tcp\b.*DENY" <<<"$ufw_out" >/dev/null; then
+        elif grep -E "\b$port/tcp\b.*DENY" <<< "$ufw_out" > /dev/null; then
           fw="bloqué"
         else
           fw="inconnu"
@@ -4094,7 +4452,7 @@ while :; do
     HP_TOTAL=$(grep HugePages_Total /proc/meminfo | awk '{print $2}')
     HP_TOTAL=${HP_TOTAL:-0}
     HUGEPAGE_1G=$(mount | grep -q '/mnt/hugepages_1gb' && echo "1GiB✅" || echo "1GiB❌")
-    THP_STATE=$(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null | grep -o '\[.*\]' | tr -d '[]')
+    THP_STATE=$(cat /sys/kernel/mm/transparent_hugepage/enabled 2> /dev/null | grep -o '\[.*\]' | tr -d '[]')
     [[ "$THP_STATE" == "never" ]] && THP="THP🚫" || THP="THP:$THP_STATE"
 
     if [[ "$HUGEPAGE_1G" == "1GiB✅" && "$THP" == "THP🚫" ]]; then
@@ -4103,10 +4461,10 @@ while :; do
       printf "  ${FG_RED}✖${RESET} ${FG_WHITE}La configuration n’est pas entièrement optimisée pour le minage.${RESET}\n"
     fi
 
-    INTERNET_OK=$(ping -q -c1 1.1.1.1 &>/dev/null && echo 1 || echo 0)
+    INTERNET_OK=$(ping -q -c1 1.1.1.1 &> /dev/null && echo 1 || echo 0)
 
     DISK_USED=$(df -P / | awk 'NR==2 {gsub(/%/, "", $5); print $5}')
-    RAM_USED=$(free | awk '/Mem:/ { if ($2 > 0) printf("%d", $3/$2 * 100); else print 0 }')
+    RAM_USED=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END {if (t>0) printf "%d", (t-a)/t*100; else print 0}' /proc/meminfo)
     CPU_LOAD=$(top -bn1 | grep "Cpu(s)" | awk '{print int(100 - $8)}')
 
     DISK_USED=${DISK_USED:-0}
@@ -4171,7 +4529,7 @@ while :; do
     printf "\r\e[3m🕒 Prochaine actualisation dans %2ds...\e[0m" "$i"
     sleep 1
 
-    if IFS= read -rsn1 -t 0.01 key 2>/dev/null; then
+    if IFS= read -rsn1 -t 0.01 key 2> /dev/null; then
       case "$key" in
         e)
           prompt_quit_menu
