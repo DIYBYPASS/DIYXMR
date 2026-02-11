@@ -903,13 +903,7 @@ download_and_extract() {
 }
 
 check_monero_corruption() {
-  local current_id=$(systemctl show -p InvocationID --value monerod.service 2> /dev/null)
-
-  if [[ -z "$current_id" ]]; then
-    return 0
-  fi
-
-  if journalctl _SYSTEMD_INVOCATION_ID="$current_id" --no-pager 2> /dev/null | grep -v "blocked" | grep -qE "MDB_CORRUPTED|MDB_PANIC|MDB_VERSION_MISMATCH"; then
+  if journalctl -u monerod.service --since "15 seconds ago" --no-pager | grep -qE "MDB_CORRUPTED|MDB_PANIC|MDB_VERSION_MISMATCH|MDB_PAGE_NOTFOUND|MDB_BAD_TXN"; then
 
     systemctl stop xmrig p2pool minotari_node monerod 2> /dev/null
     killall -9 monerod xmrig p2pool minotari_node 2> /dev/null || true
@@ -937,13 +931,7 @@ check_monero_corruption() {
 }
 
 check_tari_corruption() {
-  local current_id=$(systemctl show -p InvocationID --value minotari_node.service 2> /dev/null)
-
-  if [[ -z "$current_id" ]]; then
-    return 0
-  fi
-
-  if journalctl _SYSTEMD_INVOCATION_ID="$current_id" --no-pager 2> /dev/null | grep -qE "CorruptedDatabase|Database is corrupted|PoisonError|LMDB error"; then
+  if journalctl -u minotari_node.service --since "15 seconds ago" --no-pager | grep -qE "CorruptedDatabase|Database is corrupted|MDB_CORRUPTED|MDB_PAGE_NOTFOUND|MDB_PANIC"; then
 
     systemctl stop minotari_node 2> /dev/null
     killall -9 minotari_node 2> /dev/null || true
