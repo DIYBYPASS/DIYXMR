@@ -1,3 +1,5 @@
+🗺️ **Voir la Roadmap du projet :** [ROADMAP.md](ROADMAP.md)
+
 # 🚀 DIYXMR — Stack de Minage Monero par CPU
 
 ![License](https://img.shields.io/badge/LICENSE-SOURCE%20AVAILABLE-crimson?style=for-the-badge&logo=adguard&logoColor=white)
