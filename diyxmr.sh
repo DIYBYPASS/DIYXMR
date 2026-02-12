@@ -137,12 +137,12 @@ FREE_SPACE=$(df -BG "$WORKER_HOME" | awk 'NR==2 {print $4}' | tr -d 'G')
 EXISTING_DATA=0
 
 if [[ -d "$WORKER_HOME/.bitmonero" ]]; then
-  XMR_USED=$(du -sBG "$WORKER_HOME/.bitmonero" 2>/dev/null | awk '{print $1}' | tr -d 'G')
+  XMR_USED=$(du -sBG "$WORKER_HOME/.bitmonero" 2> /dev/null | awk '{print $1}' | tr -d 'G')
   EXISTING_DATA=$((EXISTING_DATA + ${XMR_USED:-0}))
 fi
 
 if [[ -d "$WORKER_HOME/.tari" ]]; then
-  TARI_USED=$(du -sBG "$WORKER_HOME/.tari" 2>/dev/null | awk '{print $1}' | tr -d 'G')
+  TARI_USED=$(du -sBG "$WORKER_HOME/.tari" 2> /dev/null | awk '{print $1}' | tr -d 'G')
   EXISTING_DATA=$((EXISTING_DATA + ${TARI_USED:-0}))
 fi
 
@@ -1542,7 +1542,7 @@ EOF
     fi
   fi
 
-  deps=(curl jq ufw gnupg tar unzip bzip2 netcat-openbsd iproute2 ca-certificates fail2ban tor wget qrencode)
+  deps=(curl jq ufw gnupg tar unzip bzip2 netcat-openbsd iproute2 ca-certificates fail2ban wget qrencode)
 
   (
     DEBIAN_FRONTEND=noninteractive \
@@ -1775,44 +1775,6 @@ EOF
   printf "  ${FG_GREEN}✔${RESET} Protection brute-force activée (SSH)\n"
 
   # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-  # Configuration TOR contourner la censure) ──────────────────────────────────────────────────────────────── #
-  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
-  printf "\n"
-  printf "${FG_CYAN}${BOLD}🧅  Configuration Tor (contournement de la censure)${RESET}\n"
-  printf "${FG_WHITE}${BOLD}"
-  printf '─%.0s' {1..64}
-  printf "${RESET}\n"
-
-  if systemctl is-active --quiet tor; then
-    printf "  ${FG_GREEN}✔${RESET} Service Tor déjà actif\n"
-  else
-    (
-      systemctl enable tor > /dev/null 2>&1
-      systemctl start tor > /dev/null 2>&1
-      sleep 2
-    ) &
-    spinner $! "Activation du service Tor"
-
-    if systemctl is-active --quiet tor; then
-      printf "  ${FG_GREEN}✔${RESET} Service Tor démarré avec succès\n"
-    else
-      printf "  ${FG_RED}✖${RESET} Échec du démarrage de Tor\n"
-      exit 1
-    fi
-  fi
-
-  TOR_PROXY="127.0.0.1:9050"
-
-  if timeout 2 bash -c "echo > /dev/tcp/127.0.0.1/9050" 2> /dev/null; then
-    printf "  ${FG_GREEN}✔${RESET} Proxy SOCKS5 Tor opérationnel ($TOR_PROXY)\n"
-  else
-    printf "  ${FG_RED}✖${RESET} Proxy SOCKS5 Tor inaccessible\n"
-    exit 1
-  fi
-
-  printf "  ${FG_GREEN}✔${RESET} TOR configuré pour la découverte de peers\n"
-
-  # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
   # Monero ────────────────────────────────────────────────────────────────────────────────────────────────── #
   # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
   printf "\n"
@@ -1868,8 +1830,8 @@ EOF
       cat << EOF
 [Unit]
 Description=Monero Daemon
-After=network-online.target tor.service
-Wants=network-online.target tor.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=worker
@@ -1881,8 +1843,6 @@ ExecStart=$MONERO_DIR/monerod \
   --no-igd \
   --zmq-pub=tcp://127.0.0.1:18083 \
   --p2p-bind-port=18080 \
-  --tx-proxy=tor,127.0.0.1:9050 \
-  --seed-node=moneroxmrxw44lku6qniyarpwgzpphvqpzpvvp3kj5tl3ksxopkbfwid.onion:18080 \
   --add-priority-node=p2pmd.xmrvsbeast.com:18080 \
   --add-priority-node=nodes.hashvault.pro:18080 \
   --add-priority-node=176.9.0.187:18080 \
@@ -2157,62 +2117,11 @@ EOF
 [common]
 base_path = "TARI_DATA_DIR_PLACEHOLDER/mainnet"
 
-[p2p.seeds]
-dns_seed_name_servers = [
-    "system"
-]
-
-[mainnet.p2p.seeds]
-dns_seeds = ["seeds.tari.com"]
-peer_seeds = [
-    "44c1ebed4ec5a6b3b325601e83ff3924f89e8943e15c5e82dfffe83754482b26::/ip4/54.36.113.0/tcp/18189",
-    "c00684151e75650c63a5d3e4fd4221ce19c4fbffd1a921caaecf06f8a4a65f0f::/ip4/15.235.48.4/tcp/18189",
-    "02577fd02c9f1fdef52c8de153c17c1af4f29ede2495ee008b334479456e1a5c::/ip4/54.36.117.26/tcp/18189",
-    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/ip4/54.36.112.71/tcp/18189",
-    "94a4b29148621479b1c1dffb1a2f5680dcf2c0cfb901152e245d6ec299821f61::/ip4/91.134.83.67/tcp/18189",
-    "1850155828616111f97cc739bf5f3d433d7f07edd477cbf5a3eec0dfe7547c61::/ip4/54.36.117.109/tcp/18189",
-    "5819ba1c9ddc57d8c82d60b6b3e8c1d8dd369c3336c47112b7483f4ca5fef315::/ip4/15.235.44.167/tcp/18189",
-    "d6a0d9c3f75ae3cb4d06e314a5f5dceb9cc7ad34f7e8be4126ee25253b039726::/ip4/15.235.44.135/tcp/18189",
-    "de568a57a62bff39322fff935523c5f670e379783293c88b1c525b776b568d41::/ip4/15.235.49.151/tcp/18189",
-    "fabf65440daa00a8033a7d0c966d68815f17feb6a25bc60c75bc5d4a84c41123::/ip4/15.235.49.169/tcp/18189",
-    "7c8e6530294e8bb7ff45b0f39e8bf8ea4e461b3df15a2df1ba3fa3a9bcc9ef71::/ip4/15.235.224.202/tcp/18189",
-    "ecf3f88c40d0b299cf0d0ff30e7ce8dd5a021c0806b8487426f0de89e4766177::/ip4/141.95.111.150/tcp/18189",
-    "54e491e0d88633170a98898f5d89ccc6b4f7ec22252afc23fe645d5bab453734::/ip4/198.244.203.249/tcp/18189",
-    "54e491e0d88633170a98898f5d89ccc6b4f7ec22252afc23fe645d5bab453734::/ip6/2001:41d0:803:f900::/tcp/18189",
-    "94a4b29148621479b1c1dffb1a2f5680dcf2c0cfb901152e245d6ec299821f61::/ip6/2001:41d0:40d:4300::/tcp/18189",
-    "7c8e6530294e8bb7ff45b0f39e8bf8ea4e461b3df15a2df1ba3fa3a9bcc9ef71::/ip6/2402:1f00:8005:ca00::/tcp/18189",
-    "c00684151e75650c63a5d3e4fd4221ce19c4fbffd1a921caaecf06f8a4a65f0f::/ip6/2607:5300:205:300::d28/tcp/18189",
-    "d6a0d9c3f75ae3cb4d06e314a5f5dceb9cc7ad34f7e8be4126ee25253b039726::/ip6/2607:5300:205:300::afc/tcp/18189",
-    "fabf65440daa00a8033a7d0c966d68815f17feb6a25bc60c75bc5d4a84c41123::/ip6/2607:5300:205:300::5f4/tcp/18189",
-    "02577fd02c9f1fdef52c8de153c17c1af4f29ede2495ee008b334479456e1a5c::/ip6/2001:41d0:701:1000::5bf/tcp/18189",
-    "1850155828616111f97cc739bf5f3d433d7f07edd477cbf5a3eec0dfe7547c61::/ip6/2001:41d0:701:1000::f36/tcp/18189",
-    "5819ba1c9ddc57d8c82d60b6b3e8c1d8dd369c3336c47112b7483f4ca5fef315::/ip6/2607:5300:205:300::196b/tcp/18189",
-    "de568a57a62bff39322fff935523c5f670e379783293c88b1c525b776b568d41::/ip6/2607:5300:205:300::2396/tcp/18189",
-    "ecf3f88c40d0b299cf0d0ff30e7ce8dd5a021c0806b8487426f0de89e4766177::/ip6/2001:41d0:701:1000::3dd/tcp/18189",
-    "44c1ebed4ec5a6b3b325601e83ff3924f89e8943e15c5e82dfffe83754482b26::/ip6/2001:41d0:701:1000::43ca/tcp/18189",
-    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/ip6/2001:41d0:701:1000::3e6d/tcp/18189",
-    "02577fd02c9f1fdef52c8de153c17c1af4f29ede2495ee008b334479456e1a5c::/onion3/bukg4svrs4r3hdtx4s2vle6ekipi4v7bshenfwjalymvax7akivyhkyd:18141",
-    "1850155828616111f97cc739bf5f3d433d7f07edd477cbf5a3eec0dfe7547c61::/onion3/miubwm3dbl5uh4ci7jgvq5jeyhr6sora4fivjm5fkjflyt543cqx2kqd:18141",
-    "44c1ebed4ec5a6b3b325601e83ff3924f89e8943e15c5e82dfffe83754482b26::/onion3/kimfu5ch2lwo4wm4y6xgi5kvuqnrobdgiyis2okcc27alf3qavuruxqd:18141",
-    "54e491e0d88633170a98898f5d89ccc6b4f7ec22252afc23fe645d5bab453734::/onion3/b5zgqd6emm6p2zmj7gdniysbxvmtvltrwshsyfxjoq26xqfjoicge5id:18141",
-    "5819ba1c9ddc57d8c82d60b6b3e8c1d8dd369c3336c47112b7483f4ca5fef315::/onion3/f4n5yh62a3aml5y4lrf7xhqjzgqen2r75ubze2aritezw73qk2uzirad:18141",
-    "7c8e6530294e8bb7ff45b0f39e8bf8ea4e461b3df15a2df1ba3fa3a9bcc9ef71::/onion3/5husjyv2zskwjh2wzbuirbq4gk5uiyx4gnn277r3yoxv4oucn72tmeyd:18141",
-    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/onion3/yur5nsnkbpfvs4f5h65y652igcqjfv35okchify44kr77evkyfpnleqd:18141",
-    "94a4b29148621479b1c1dffb1a2f5680dcf2c0cfb901152e245d6ec299821f61::/onion3/x4cc7t4z5bhzz2qoj5qkfje6jnisz5gvzixeygvzwgi6sg3rhpo5rlqd:18141",
-    "c00684151e75650c63a5d3e4fd4221ce19c4fbffd1a921caaecf06f8a4a65f0f::/onion3/xfa5ijw7747cmjwkbjx6fhobgy4rgx5uozc3dnp7lif7gw7c3dzg6kad:18141",
-    "d6a0d9c3f75ae3cb4d06e314a5f5dceb9cc7ad34f7e8be4126ee25253b039726::/onion3/kuibpj4742riknkddi4vlrdgklipf6uf5f6b4vdwsklr4iigxrm367qd:18141",
-    "de568a57a62bff39322fff935523c5f670e379783293c88b1c525b776b568d41::/onion3/xwsoa6q4ijugfar22uoggu22wt6ttmtg2egkyo4fs6ptfjtq3kbrulid:18141",
-    "ecf3f88c40d0b299cf0d0ff30e7ce8dd5a021c0806b8487426f0de89e4766177::/onion3/3dcfberbstruf3g2g5slacw2ls3nj6qmad2fxumqop3m65llagnhj6yd:18141",
-    "fabf65440daa00a8033a7d0c966d68815f17feb6a25bc60c75bc5d4a84c41123::/onion3/k7egeg7alhhgr5vbjgatdd6g2rlvy3l6pd3kxvget2q437jqh7q6cuid:18141",
-]
-
 [base_node]
 network = "mainnet"
 mining_enabled = true
-
 grpc_enabled = true
 grpc_address = "/ip4/127.0.0.1/tcp/GRPC_PORT_PLACEHOLDER"
-
 grpc_server_allow_methods = [
     "get_version",
     "check_for_updates",
@@ -2255,15 +2164,48 @@ grpc_server_allow_methods = [
     "search_payment_references_via_output_hash",
 ]
 
-[base_node.storage]
-pruning_horizon = 0
-
 [base_node.p2p.transport]
 type = "tcp"
 
 [base_node.p2p.transport.tcp]
 listener_address = "/ip4/0.0.0.0/tcp/18189"
-tor_socks_address = "/ip4/127.0.0.1/tcp/9050"
+
+[p2p.seeds]
+dns_seed_name_servers = ["system"]
+
+[mainnet.p2p.seeds]
+dns_seeds = ["seeds.tari.com"]
+peer_seeds = [
+    "44c1ebed4ec5a6b3b325601e83ff3924f89e8943e15c5e82dfffe83754482b26::/ip4/54.36.113.0/tcp/18189",
+    "c00684151e75650c63a5d3e4fd4221ce19c4fbffd1a921caaecf06f8a4a65f0f::/ip4/15.235.48.4/tcp/18189",
+    "02577fd02c9f1fdef52c8de153c17c1af4f29ede2495ee008b334479456e1a5c::/ip4/54.36.117.26/tcp/18189",
+    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/ip4/54.36.112.71/tcp/18189",
+    "94a4b29148621479b1c1dffb1a2f5680dcf2c0cfb901152e245d6ec299821f61::/ip4/91.134.83.67/tcp/18189",
+    "1850155828616111f97cc739bf5f3d433d7f07edd477cbf5a3eec0dfe7547c61::/ip4/54.36.117.109/tcp/18189",
+    "5819ba1c9ddc57d8c82d60b6b3e8c1d8dd369c3336c47112b7483f4ca5fef315::/ip4/15.235.44.167/tcp/18189",
+    "d6a0d9c3f75ae3cb4d06e314a5f5dceb9cc7ad34f7e8be4126ee25253b039726::/ip4/15.235.44.135/tcp/18189",
+    "de568a57a62bff39322fff935523c5f670e379783293c88b1c525b776b568d41::/ip4/15.235.49.151/tcp/18189",
+    "fabf65440daa00a8033a7d0c966d68815f17feb6a25bc60c75bc5d4a84c41123::/ip4/15.235.49.169/tcp/18189",
+    "7c8e6530294e8bb7ff45b0f39e8bf8ea4e461b3df15a2df1ba3fa3a9bcc9ef71::/ip4/15.235.224.202/tcp/18189",
+    "ecf3f88c40d0b299cf0d0ff30e7ce8dd5a021c0806b8487426f0de89e4766177::/ip4/141.95.111.150/tcp/18189",
+    "54e491e0d88633170a98898f5d89ccc6b4f7ec22252afc23fe645d5bab453734::/ip4/198.244.203.249/tcp/18189",
+    "54e491e0d88633170a98898f5d89ccc6b4f7ec22252afc23fe645d5bab453734::/ip6/2001:41d0:803:f900::/tcp/18189",
+    "94a4b29148621479b1c1dffb1a2f5680dcf2c0cfb901152e245d6ec299821f61::/ip6/2001:41d0:40d:4300::/tcp/18189",
+    "7c8e6530294e8bb7ff45b0f39e8bf8ea4e461b3df15a2df1ba3fa3a9bcc9ef71::/ip6/2402:1f00:8005:ca00::/tcp/18189",
+    "c00684151e75650c63a5d3e4fd4221ce19c4fbffd1a921caaecf06f8a4a65f0f::/ip6/2607:5300:205:300::d28/tcp/18189",
+    "d6a0d9c3f75ae3cb4d06e314a5f5dceb9cc7ad34f7e8be4126ee25253b039726::/ip6/2607:5300:205:300::afc/tcp/18189",
+    "fabf65440daa00a8033a7d0c966d68815f17feb6a25bc60c75bc5d4a84c41123::/ip6/2607:5300:205:300::5f4/tcp/18189",
+    "02577fd02c9f1fdef52c8de153c17c1af4f29ede2495ee008b334479456e1a5c::/ip6/2001:41d0:701:1000::5bf/tcp/18189",
+    "1850155828616111f97cc739bf5f3d433d7f07edd477cbf5a3eec0dfe7547c61::/ip6/2001:41d0:701:1000::f36/tcp/18189",
+    "5819ba1c9ddc57d8c82d60b6b3e8c1d8dd369c3336c47112b7483f4ca5fef315::/ip6/2607:5300:205:300::196b/tcp/18189",
+    "de568a57a62bff39322fff935523c5f670e379783293c88b1c525b776b568d41::/ip6/2607:5300:205:300::2396/tcp/18189",
+    "ecf3f88c40d0b299cf0d0ff30e7ce8dd5a021c0806b8487426f0de89e4766177::/ip6/2001:41d0:701:1000::3dd/tcp/18189",
+    "44c1ebed4ec5a6b3b325601e83ff3924f89e8943e15c5e82dfffe83754482b26::/ip6/2001:41d0:701:1000::43ca/tcp/18189",
+    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/ip6/2001:41d0:701:1000::3e6d/tcp/18189",
+]
+
+[base_node.storage]
+pruning_horizon = 0
 
 [base_node.state_machine]
 blockchain_sync_config.initial_max_sync_latency = 3000
@@ -2308,9 +2250,8 @@ EOFCONFIG
           cat << EOF
 [Unit]
 Description=Minotari Node (Tari merge mining - MAINNET)
-After=network-online.target tor.service
+After=network-online.target
 Requires=network-online.target
-Wants=tor.service
 
 [Service]
 User=worker
@@ -2354,7 +2295,7 @@ EOF
           fi
 
           mkdir -p "$PROTO_DIR"
-          local base_url="https://raw.githubusercontent.com/tari-project/tari/development/applications/minotari_app_grpc/proto"
+          local base_url="https://raw.githubusercontent.com/tari-project/tari/mainnet/applications/minotari_app_grpc/proto"
           local files=(
             "base_node.proto" "types.proto" "transaction.proto" "network.proto"
             "sidechain_types.proto" "block.proto" "block_header.proto"
