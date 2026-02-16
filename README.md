@@ -7,7 +7,7 @@
 ![Bash](https://img.shields.io/badge/Language-Bash-4EAA25?style=for-the-badge&logo=gnu-bash)
 ![Monero](https://img.shields.io/badge/Monero-XMR-FF6600?style=for-the-badge&logo=monero)
 
-DIYXMR est un stack de minage Monero (XMR) clé en main pour Linux. Conçu pour la performance et la résilience, il automatise le déploiement, l'optimisation système (CPU/RAM), la sécurité réseau (Tor/UFW) et gère nativement le Merge Mining avec Tari sans configuration complexe.
+DIYXMR est un stack de minage Monero (XMR) clé en main pour Linux. Conçu pour la performance et la résilience, il automatise le déploiement, l'optimisation système (CPU/RAM), la sécurité réseau (Cloudflare DoT/UFW) et gère nativement le Merge Mining avec Tari sans configuration complexe.
 
 Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 
@@ -17,8 +17,8 @@ Tout est piloté via un **Tableau de Bord (TUI)** interactif en temps réel.
 
 ## ⚠️ Philosophie : Performance & Anti-Censure
 Ce projet est conçu pour la **performance brute** et la **résilience**, pas pour l'anonymat.
-- **Tor = Annuaire de secours :** Utilisé pour récupérer des listes de pairs (Peer Discovery) uniquement **en cas de blocage par le FAI**.
-- **Clearweb = Transport :** Le trafic de minage transite en direct sur Internet pour garantir une **latence minimale**.
+- **Cloudflare DoT = Anti-Censure :** Utilisation de serveurs DNS chiffrés (DNS over TLS via Cloudflare) pour garantir la découverte des pairs (Peer Discovery) **même en cas de blocage ou de filtrage par le FAI**, sans perte de vitesse.
+- **Clearweb = Transport :** Le trafic de minage transite en direct sur Internet (TCP pur, bypass Tor) pour garantir une **latence minimale**. 
 
 ## 🏁 La Règle d'Or : Latence > Hashrate
 Le minage est une course de vitesse, pas seulement de puissance.
@@ -51,7 +51,7 @@ Ce script transforme votre machine en serveur de minage dédié : **ne l'utilise
 - **Pare-feu Adaptatif (UFW)** : Configuration automatique restreignant l'accès aux seuls ports nécessaires selon le mode de minage et les options activées.
 - **Gestion Intelligente du SSH** : Le script détecte automatiquement votre port SSH actuel pour éviter de vous bloquer l'accès lors de la configuration de l'UFW, et permet de le modifier ou de le bannir totalement pour plus de sécurité.
 - **Anti Brute-force (Fail2Ban)** : Sécurisation automatisée des accès SSH contre les tentatives d'intrusion par force brute.
-- **Anti-Censure via Tor** : Utilisation de Tor comme annuaire de secours pour la découverte de pairs en cas de blocage par le FAI.
+- **Anti-Censure via Cloudflare (DoT)** : Chiffrement des requêtes DNS (DNS over TLS via 1.1.1.1) pour contourner les restrictions des FAI et empêcher l'espionnage de la résolution des nœuds, le tout mis en cache localement.
 - **Vérification Cryptographique** : Validation systématique de l'intégrité des binaires par sommes de contrôle **SHA256** et vérification des signatures **GPG**.
 - **IPv6 Privacy Extensions** : Activation de la confidentialité IPv6 pour masquer l'identifiant matériel lors des communications réseau.
 
@@ -313,7 +313,7 @@ Voici un aperçu des différents menus du script.
 ## Menu U (mettre à jour) :
 ![Menu_U DIYXMR](assets/menu-u.png)
 
-## Menu S (paremètres) :
+## Menu S (paramètres) :
 ![Menu_S DIYXMR](assets/menu-s.png)
 
 ## Menu L (logs) :
