@@ -144,13 +144,17 @@ Mode performance maximale pour exploiter tout le potentiel du CPU.
 
 ## 📋 Configuration Requise
 
+### Environnement : Bare Metal & Réseau Local
+Pour garantir une **stabilité absolue** et une **efficacité maximale**, ce script est exclusivement conçu pour un usage sur machine physique et réseau filaire.
+
+- **Bare Metal Uniquement (Pas de VM/VPS) :** Le minage RandomX nécessite un accès direct et exclusif aux registres MSR du processeur et une gestion spécifique de la mémoire (1GB Pages). L'utilisation d'une Machine Virtuelle (VM), d'un VPS ou d'un conteneur Docker ajoute une couche d'abstraction qui dégrade le hashrate et empêche les optimisations de bas niveau du noyau Linux effectuées par le script.
+- **Réseau Local (LAN) & Ethernet :** La stabilité du P2Pool repose sur la réactivité de votre nœud. Une connexion Wi-Fi ou un réseau instable provoque des micro-coupures et augmente la latence, entraînant des shares rejetées (Stale shares). Le script optimise la pile TCP (BBR/FQ) pour le local afin de garantir que votre travail soit transmis instantanément au réseau.
+
 ### J’ai développé et optimisé le script pour :
 - **OS :** Ubuntu Server 24.04 LTS (x64)
-- **Stockage :** SSD ou NVMe 500 Go recommandé pour les nœuds (HDD déconseillé)
+- **Stockage :** SSD NVMe 500 Go recommandé pour les nœuds (HDD et SSD SATA déconseillé)
 - **RAM :** 8 Go minimum (Mode Dual Channel fortement recommandé pour le hashrate)
 - **Réseau :** Fibre optique via Câble Ethernet (Wi-Fi déconseillé pour P2Pool)
-
-P2Pool ne tolère pas la latence.
 
 ### Pour recevoir vos récompenses :
 - Une adresse Monero (obligatoire)
