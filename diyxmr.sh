@@ -622,22 +622,73 @@ esac
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Utilitaires ───────────────────────────────────────────────────────────────────────────────────────────── #
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
+safe_update_grub_cmdline() {
+  local param="$1"
+  local action="$2"
+  local grub_file="/etc/default/grub"
+
+  [[ -f "$grub_file" ]] || return 0
+
+  local tmp_file
+  tmp_file=$(mktemp)
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" =~ ^GRUB_CMDLINE_LINUX=(.*)$ ]]; then
+      local val="${BASH_REMATCH[1]}"
+
+      if [[ "$val" =~ ^\"(.*)\"$ ]] || [[ "$val" =~ ^\'(.*)\'$ ]]; then
+        val="${BASH_REMATCH[1]}"
+      fi
+
+      local -a current_args=($val)
+      local -a new_args=()
+      local found=0
+      
+      for arg in "${current_args[@]}"; do
+        if [[ "$arg" == "$param" ]]; then
+          found=1
+          [[ "$action" == "remove" ]] && continue
+        fi
+        new_args+=("$arg")
+      done
+      
+      if [[ "$action" == "add" && $found -eq 0 ]]; then
+        new_args+=("$param")
+      fi
+
+      echo "GRUB_CMDLINE_LINUX=\"${new_args[*]}\"" >> "$tmp_file"
+    else
+      echo "$line" >> "$tmp_file"
+    fi
+  done < "$grub_file"
+
+  cat "$tmp_file" > "$grub_file"
+  rm -f "$tmp_file"
+}
+
 github_latest_tag() {
-  local repo="$1"
-  local api_url="https://api.github.com/repos/$repo/releases/latest"
-  local tag
+  local repo="${1// /}"
+  local url
 
-  tag=$(
-    { curl -fsSL -H 'Accept: application/vnd.github+json' \
-      -H 'User-Agent: Mozilla/5.0' \
-      "$api_url" || echo "{}"; } | jq -r '.tag_name // empty' 2> /dev/null
-  )
+  url=$(curl -sI --connect-timeout 5 --max-time 10 --retry 2 \
+        "https://github.com/$repo/releases/latest" | 
+        grep -i "^location:" | 
+        awk '{print $2}' | 
+        tr -d '[:space:]')
 
-  if [[ -z "$tag" || "$tag" == "null" ]]; then
+  if [[ -z "$url" || "$url" == *"releases/latest" ]]; then
     return 1
-  else
+  fi
+
+  local tag="${url##*/}"
+
+  tag=$(echo "$tag" | tr -dc '[:print:]')
+
+  if [[ -n "$tag" ]]; then
     echo "$tag"
     return 0
+  else
+    return 1
   fi
 }
 
@@ -783,7 +834,7 @@ download_and_extract() {
     local api_url="https://api.github.com/repos/tari-project/tari/releases/tags/${version}"
     local assets_json=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" -H "User-Agent: diyxmr-script" "$api_url" 2> /dev/null)
 
-    local zip_filename=$(echo "$assets_json" | grep -oP '"name":\s*"\K[^"]*mainnet[^"]*linux-x86_64\.zip(?=")' | grep -v '\.sha256' | head -n1)
+    local zip_filename=$(echo "$assets_json" | jq -r '.assets[] | select(.name | test("mainnet.*linux-x86_64\\.zip$") and (test("\\.sha256$") | not)) | .name' | head -n1)
 
     if [[ -z "$zip_filename" ]]; then
       printf "  ${FG_RED}✖${RESET} Impossible de trouver le fichier Tari mainnet pour ${version}\n"
@@ -923,7 +974,6 @@ check_monero_corruption() {
   if journalctl -u monerod.service --since "15 seconds ago" --no-pager | grep -qE "MDB_CORRUPTED|MDB_PANIC|MDB_VERSION_MISMATCH|MDB_PAGE_NOTFOUND|MDB_BAD_TXN"; then
 
     systemctl stop xmrig p2pool minotari_node monerod 2> /dev/null
-    killall -9 monerod xmrig p2pool minotari_node 2> /dev/null || true
 
     clear
     printf "\n"
@@ -951,7 +1001,6 @@ check_tari_corruption() {
   if journalctl -u minotari_node.service --since "15 seconds ago" --no-pager | grep -qE "CorruptedDatabase|Database is corrupted|MDB_CORRUPTED|MDB_PAGE_NOTFOUND|MDB_PANIC"; then
 
     systemctl stop minotari_node 2> /dev/null
-    killall -9 minotari_node 2> /dev/null || true
 
     clear
     printf "\n"
@@ -1277,11 +1326,8 @@ EOF
   UPDATE_GRUB=false
   GRUB_FILE="/etc/default/grub"
 
-  if grep -q 'ipv6.disable=1' "$GRUB_FILE"; then
-    sed -i 's/ ipv6.disable=1//g' "$GRUB_FILE"
-    sed -i 's/ipv6.disable=1 //g' "$GRUB_FILE"
-    sed -i 's/ipv6.disable=1//g' "$GRUB_FILE"
-    sed -i 's/GRUB_CMDLINE_LINUX="  /GRUB_CMDLINE_LINUX=" /g' "$GRUB_FILE"
+  if grep -q '\bipv6.disable=1\b' "$GRUB_FILE"; then
+    safe_update_grub_cmdline "ipv6.disable=1" "remove"
     UPDATE_GRUB=true
   fi
 
@@ -1407,10 +1453,6 @@ EOFCONF
   (
     find /etc/sysctl.d/ -type f -iname '*hugepages*.conf' -exec rm -f {} \;
     sed -i '/hugetlbfs/d' /etc/fstab
-
-    sed -i 's/ transparent_hugepage=never//g' /etc/default/grub
-    sed -i 's/transparent_hugepage=never //g' /etc/default/grub
-    sed -i 's/[[:space:]]\+$//' /etc/default/grub
   ) &
   pid=$!
   spinner "$pid" "Nettoyage des anciennes configurations HugePages"
@@ -1458,9 +1500,8 @@ EOF
   spinner "$pid" "Activation Service THP (systemd)"
 
   UPDATE_GRUB_HP=false
-  if ! grep -q 'transparent_hugepage=never' "$GRUB_FILE"; then
-    sed -i 's/^GRUB_CMDLINE_LINUX="/GRUB_CMDLINE_LINUX="transparent_hugepage=never /' "$GRUB_FILE"
-    sed -i 's/GRUB_CMDLINE_LINUX="  /GRUB_CMDLINE_LINUX=" /g' "$GRUB_FILE"
+  if ! grep -q '\btransparent_hugepage=never\b' "$GRUB_FILE"; then
+    safe_update_grub_cmdline "transparent_hugepage=never" "add"
     UPDATE_GRUB_HP=true
   fi
 
@@ -1480,8 +1521,24 @@ EOF
 
     if grep -q pdpe1gb /proc/cpuinfo; then
       mkdir -p /mnt/hugepages_1gb
-      grep -q '/mnt/hugepages_1gb' /etc/fstab || echo "nodev /mnt/hugepages_1gb hugetlbfs pagesize=1G 0 0" >> /etc/fstab
-      mountpoint -q /mnt/hugepages_1gb || mount /mnt/hugepages_1gb
+
+      cat << 'EOFMOUNT' > /etc/systemd/system/mnt-hugepages_1gb.mount
+[Unit]
+Description=HugePages 1GB Mount
+DefaultDependencies=no
+Before=sysinit.target
+
+[Mount]
+What=hugetlbfs
+Where=/mnt/hugepages_1gb
+Type=hugetlbfs
+Options=pagesize=1G
+
+[Install]
+WantedBy=sysinit.target
+EOFMOUNT
+      systemctl daemon-reload
+      systemctl enable --now mnt-hugepages_1gb.mount > /dev/null 2>&1
     fi
   ) &
   pid=$!
@@ -4421,7 +4478,7 @@ while :; do
       printf "  ${FG_RED}✖${RESET} ${FG_WHITE}Problème: pas de connexion Internet${RESET}\n"
     elif [[ "$DISK_USED" -ge 95 ]]; then
       printf "  ${FG_RED}✖${RESET} ${FG_WHITE}Problème: disque critique (${DISK_USED}%%)${RESET}\n"
-    elif [[ "$RAM_USED" -ge 95 ]]; then
+    elif [[ "$RAM_USED" -ge 98 ]]; then
       printf "  ${FG_RED}✖${RESET} ${FG_WHITE}Problème: ram critique (${RAM_USED}%%)${RESET}\n"
     elif [[ "$CPU_LOAD" -lt "$CPU_CRIT" ]]; then
       printf "  ${FG_RED}✖${RESET} ${FG_WHITE}Problème: CPU trop bas (${CPU_LOAD}%%) en mode $CPU_MODE${RESET}\n"
