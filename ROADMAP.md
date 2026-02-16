@@ -1,6 +1,6 @@
 # 🗺️ Roadmap - DIYXMR
 
-Bienvenue sur la feuille de route du projet DIYXMR. Actuellement en version **v0.1.0**, le projet évolue rapidement. L'objectif principal de la prochaine version majeure (v1.0.0) est de consolider la base de code avant d'introduire de nouvelles architectures de minage automatisées.
+Voici la feuille de route de DIYXMR et ses prochaines évolutions pour transformer le projet en un orchestrateur de minage intelligent, modulaire et automatisé.
 
 ---
 
@@ -16,7 +16,7 @@ Bienvenue sur la feuille de route du projet DIYXMR. Actuellement en version **v0
 ## 🖥️ v1.1.0 - Expérience Utilisateur (UX) & CLI
 *Rendre l'interface et l'utilisation quotidienne plus fluides et accessibles.*
 
-* **Arguments CLI avancés** : Ajout de commandes directes sans passer par le TUI (ex: `./diyxmr.sh --logs`, `./diyxmr.sh --donate`).
+* **Arguments CLI avancés** : Ajout de commandes directes sans passer par le TUI (ex: `./diyxmr.sh --logs`, `./diyxmr.sh --donate`, `./diyxmr.sh --clean`).
 * **Conseils d'optimisation matérielle** : Analyse automatique du matériel (CPU/RAM) et suggestions de réglages BIOS au lancement (activation XMP/EXPO, Precision Boost Overdrive, vérification approfondie des HugePages).
 * **Internationalisation (i18n)** : Support multi-langue (FR/EN) détecté automatiquement via la variable `LANG` ou forcé via le fichier de configuration.
 * **Documentation locale** : Génération automatique d'un fichier d'aide local (ex: `/home/worker/readme.txt`) résumant les commandes et les chemins utiles.
