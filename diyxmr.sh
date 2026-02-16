@@ -1851,8 +1851,8 @@ ExecStart=$MONERO_DIR/monerod \
   --add-priority-node=116.203.111.109:18080 \
   --add-priority-node=144.76.202.167:18080 \
   --add-priority-node=178.128.192.138:18080 \
+  --out-peers=32 \
   --in-peers=64 \
-  --out-peers=64 \
   --prep-blocks-threads=$(nproc) \
   --fast-block-sync=1 \
   --enforce-dns-checkpointing \
@@ -2112,6 +2112,11 @@ EOF
 
         CONFIG_PATH="$TARI_DATA_DIR/mainnet/config/config.toml"
 
+        CPU_THREADS=$(nproc)
+        TARI_VMS=$((CPU_THREADS / 2))
+        [[ "$TARI_VMS" -lt 1 ]] && TARI_VMS=1
+        [[ "$TARI_VMS" -gt 16 ]] && TARI_VMS=16
+
         TARI_CONFIG=$(
           cat << 'EOFCONFIG'
 [common]
@@ -2122,47 +2127,23 @@ network = "mainnet"
 mining_enabled = true
 grpc_enabled = true
 grpc_address = "/ip4/127.0.0.1/tcp/GRPC_PORT_PLACEHOLDER"
+
+max_randomx_vms = MAX_RANDOMX_VMS_PLACEHOLDER
+
 grpc_server_allow_methods = [
-    "get_version",
-    "check_for_updates",
-    "get_sync_info",
-    "get_sync_progress",
-    "get_tip_info",
-    "identify",
-    "get_network_status",
-    "list_headers",
-    "get_header_by_hash",
-    "get_blocks",
-    "get_block_timing",
-    "get_constants",
-    "get_block_size",
-    "get_block_fees",
-    "get_tokens_in_circulation",
-    "get_network_difficulty",
-    "get_new_block_template",
-    "get_new_block",
-    "get_new_block_with_coinbases",
-    "get_new_block_template_with_coinbases",
-    "get_new_block_blob",
-    "submit_block",
-    "submit_block_blob",
-    "submit_transaction",
-    "search_kernels",
-    "search_utxos",
-    "fetch_matching_utxos",
-    "get_peers",
-    "get_mempool_transactions",
-    "transaction_state",
-    "list_connected_peers",
-    "get_mempool_stats",
-    "get_active_validator_nodes",
-    "get_validator_node_changes",
-    "get_shard_key",
-    "get_template_registrations",
-    "get_side_chain_utxos",
-    "search_payment_references",
-    "search_payment_references_via_output_hash",
+    "get_version", "get_tip_info", "get_network_status", "get_network_difficulty",
+    "get_new_block_template", "get_new_block_template_with_coinbases", 
+    "get_new_block", "get_new_block_with_coinbases", "get_new_block_blob", 
+    "submit_block", "submit_block_blob", "get_constants", "get_mempool_transactions", 
+    "get_sync_info", "get_sync_progress", "get_peers", "list_connected_peers", 
+    "list_headers", "identify"
 ]
+
+[base_node.p2p]
+max_concurrent_inbound_tasks = 250
+max_concurrent_outbound_tasks = 250
+rpc_max_simultaneous_sessions = 500
+rpc_max_sessions_per_peer = 20
 
 [base_node.p2p.transport]
 type = "tcp"
@@ -2201,20 +2182,31 @@ peer_seeds = [
     "de568a57a62bff39322fff935523c5f670e379783293c88b1c525b776b568d41::/ip6/2607:5300:205:300::2396/tcp/18189",
     "ecf3f88c40d0b299cf0d0ff30e7ce8dd5a021c0806b8487426f0de89e4766177::/ip6/2001:41d0:701:1000::3dd/tcp/18189",
     "44c1ebed4ec5a6b3b325601e83ff3924f89e8943e15c5e82dfffe83754482b26::/ip6/2001:41d0:701:1000::43ca/tcp/18189",
-    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/ip6/2001:41d0:701:1000::3e6d/tcp/18189",
+    "8cc21698e3930da90fd8a9663fedf9d4d56d6ecd7dedec07f8b3590e82061503::/ip6/2001:41d0:701:1000::3e6d/tcp/18189"
 ]
+
+[base_node.p2p.dht]
+broadcast_factor = 16
+propagation_factor = 8
 
 [base_node.storage]
 pruning_horizon = 0
+pruning_interval = 50
+track_reorgs = true
+cleanup_orphans_at_startup = true
+
+[base_node.mempool]
+unconfirmed_pool.storage_capacity = 60000
 
 [base_node.state_machine]
-blockchain_sync_config.initial_max_sync_latency = 3000
-blockchain_sync_config.rpc_deadline = 3000
+blockchain_sync_config.initial_max_sync_latency = 2000
+blockchain_sync_config.rpc_deadline = 2000
 EOFCONFIG
         )
 
         TARI_CONFIG="${TARI_CONFIG//TARI_DATA_DIR_PLACEHOLDER/$TARI_DATA_DIR}"
         TARI_CONFIG="${TARI_CONFIG//GRPC_PORT_PLACEHOLDER/$TARI_GRPC_PORT}"
+        TARI_CONFIG="${TARI_CONFIG//MAX_RANDOMX_VMS_PLACEHOLDER/$TARI_VMS}"
 
         NEW_CONFIG_HASH=$(echo "$TARI_CONFIG" | sha256sum | awk '{print $1}')
 
