@@ -58,6 +58,7 @@ FG_BLUE='\e[34m'
 FG_CYAN='\e[36m'
 FG_MAGENTA='\e[35m'
 BG_WHITE='\e[47m'
+BG_GREEN='\e[42m'
 BG_RED='\e[41m'
 BG_MAGENTA='\e[45m'
 OK="✔"
@@ -102,6 +103,11 @@ trap 'printf "\e[31m✖  %s:%d : %s (code %s)\e[0m\n" \
   printf "\e[31m✖  Exécute en root (sudo ./script.sh)\e[0m\n"
   exit 1
 }
+
+if [[ $(stat -c "%U:%G" "$0" 2> /dev/null) != "root:root" ]] || [[ $(stat -c "%a" "$0" 2> /dev/null) != "700" ]]; then
+  chown root:root "$0" 2> /dev/null || true
+  chmod 700 "$0" 2> /dev/null || true
+fi
 
 # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
 # Vérification Connectivité Internet ────────────────────────────────────────────────────────────────────── #
@@ -641,10 +647,12 @@ safe_update_grub_cmdline() {
         val="${BASH_REMATCH[1]}"
       fi
 
-      local -a current_args=($val)
+      local -a current_args
+      read -ra current_args <<< "$val"
+
       local -a new_args=()
       local found=0
-      
+
       for arg in "${current_args[@]}"; do
         if [[ "$arg" == "$param" ]]; then
           found=1
@@ -652,7 +660,7 @@ safe_update_grub_cmdline() {
         fi
         new_args+=("$arg")
       done
-      
+
       if [[ "$action" == "add" && $found -eq 0 ]]; then
         new_args+=("$param")
       fi
@@ -672,10 +680,10 @@ github_latest_tag() {
   local url
 
   url=$(curl -sI --connect-timeout 5 --max-time 10 --retry 2 \
-        "https://github.com/$repo/releases/latest" | 
-        grep -i "^location:" | 
-        awk '{print $2}' | 
-        tr -d '[:space:]')
+    "https://github.com/$repo/releases/latest" |
+    grep -i "^location:" |
+    awk '{print $2}' |
+    tr -d '[:space:]')
 
   if [[ -z "$url" || "$url" == *"releases/latest" ]]; then
     return 1
@@ -698,6 +706,15 @@ refresh_latest_versions() {
   P2POOL_VERSION=$(github_latest_tag SChernykh/p2pool || echo "")
   TARI_VERSION=$(github_latest_tag tari-project/tari || echo "")
   XMRIG_VERSION=$(github_latest_tag xmrig/xmrig || echo "")
+
+  (
+    TMP_VER=$(mktemp)
+    if wget -qO "$TMP_VER" "https://raw.githubusercontent.com/DIYBYPASS/DIYXMR/main/diyxmr.sh"; then
+      REM_VER=$(grep -oP '^DIYXMR_VERSION="\K[^"]+' "$TMP_VER" | head -n1)
+      [[ -n "$REM_VER" ]] && echo "$REM_VER" > /tmp/.diyxmr_remote_version
+    fi
+    rm -f "$TMP_VER"
+  ) &
 }
 
 print_status() {
@@ -3468,14 +3485,40 @@ force_update() {
     read -rp $'\n➜ Ton choix (0-1) : ' choice
     case "$choice" in
       1)
-        echo -e "\n${FG_GREEN}🚀${RESET} Démarrage de la mise à jour..."
+        echo -e "\n${FG_GREEN}🚀${RESET} Recherche d'une mise à jour..."
 
-        (sleep 3) &
-        spinner $! "Téléchargement en cours..."
+        TMP_FILE=$(mktemp)
 
-        echo -e "${FG_GREEN}✓${RESET} Terminé. Relance du script..."
-        sleep 1
-        exec "$0"
+        (wget -qO "$TMP_FILE" "https://raw.githubusercontent.com/DIYBYPASS/DIYXMR/main/diyxmr.sh") &
+        spinner $! "Vérification sur GitHub..."
+
+        if [[ -s "$TMP_FILE" ]]; then
+
+          REMOTE_VERSION=$(grep -oP '^DIYXMR_VERSION="\K[^"]+' "$TMP_FILE" | head -n1)
+
+          if [[ "$REMOTE_VERSION" == "$DIYXMR_VERSION" ]]; then
+            echo -e "${FG_GREEN}✔${RESET} Ton script est déjà à jour (v${DIYXMR_VERSION})."
+            rm -f "$TMP_FILE"
+            sleep 2
+          elif [[ -z "$REMOTE_VERSION" ]]; then
+            echo -e "${FG_RED}✖ Erreur : Impossible de lire la version distante.${RESET}"
+            rm -f "$TMP_FILE"
+            sleep 2
+          else
+            echo -e "${FG_YELLOW}⚠${RESET} Nouvelle version trouvée : ${BOLD}v${REMOTE_VERSION}${RESET} (Actuelle: v${DIYXMR_VERSION})"
+
+            chmod +x "$TMP_FILE"
+            mv "$TMP_FILE" "$0"
+
+            echo -e "${FG_GREEN}✓${RESET} Mise à jour réussie. Relance du script..."
+            sleep 1
+            exec "$0"
+          fi
+        else
+          echo -e "${FG_RED}✖ Erreur réseau ou GitHub inaccessible. Ton script est conservé.${RESET}"
+          rm -f "$TMP_FILE"
+          sleep 2
+        fi
         ;;
       0)
         echo -e "\n${FG_CYAN}↩${RESET}  Retour..."
@@ -3917,24 +3960,41 @@ while :; do
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
     hostname=$(hostname)
     now=$(date '+%Y-%m-%d %H:%M:%S')
-    TITLE="TABLEAU DE BORD  —  $hostname  —  $now"
+    TITLE1="TABLEAU DE BORD  —  $hostname  —  $now"
+    TITLE2="diyXMR v${DIYXMR_VERSION}"
 
     BOX_WIDTH=83
-    title_len=${#TITLE}
-    padding=$(((BOX_WIDTH - title_len) / 2))
-    pad=$(printf ' %.0s' $(seq 1 $padding))
-    end_pad_len=$((BOX_WIDTH - title_len - padding))
-    end_pad=$(printf ' %.0s' $(seq 1 $end_pad_len))
+
+    title_len1=${#TITLE1}
+    padding1=$(((BOX_WIDTH - title_len1) / 2))
+    pad1=$(printf ' %.0s' $(seq 1 $padding1))
+    end_pad_len1=$((BOX_WIDTH - title_len1 - padding1))
+    end_pad1=$(printf ' %.0s' $(seq 1 $end_pad_len1))
+
+    title_len2=${#TITLE2}
+    padding2=$(((BOX_WIDTH - title_len2) / 2))
+    pad2=$(printf ' %.0s' $(seq 1 $padding2))
+    end_pad_len2=$((BOX_WIDTH - title_len2 - padding2))
+    end_pad2=$(printf ' %.0s' $(seq 1 $end_pad_len2))
 
     printf "${BOLD}${FG_BLUE}╔"
     printf '═%.0s' $(seq 1 $BOX_WIDTH)
     printf "╗\n"
 
-    printf "║%s%s%s║\n" "$pad" "$TITLE" "$end_pad"
+    printf "║%s%s%s║\n" "$pad1" "$TITLE1" "$end_pad1"
+    printf "║%s%s%s║\n" "$pad2" "$TITLE2" "$end_pad2"
 
     printf "╚"
     printf '═%.0s' $(seq 1 $BOX_WIDTH)
     printf "╝${RESET}\n"
+
+    # --- NOUVEAU : Affichage de l'alerte de mise à jour ---
+    if [[ -f /tmp/.diyxmr_remote_version ]]; then
+      SCRIPT_REMOTE_VERSION=$(cat /tmp/.diyxmr_remote_version 2> /dev/null)
+      if [[ -n "$SCRIPT_REMOTE_VERSION" && "$SCRIPT_REMOTE_VERSION" != "$DIYXMR_VERSION" ]]; then
+        printf "  ${BG_GREEN}${FG_BLACK}${BOLD} 🚀 MISE À JOUR DISPONIBLE : v%s (Appuie sur U) ${RESET}\n" "$SCRIPT_REMOTE_VERSION"
+      fi
+    fi
 
     # ///////////////////////////////////////////////////////////////////////////////////////////////////////// #
     # Santé du stack ────────────────────────────────────────────────────────────────────────────────────────── #
