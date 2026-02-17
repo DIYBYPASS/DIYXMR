@@ -4,6 +4,18 @@ Voici la feuille de route de DIYXMR et ses prochaines évolutions pour transform
 
 ---
 
+## ⚙️ v0.1.1 - Prérequis & Optimisations Optionnelles
+*Si le stack de minage a toujours eu ses propres exigences matérielles, le script d'installation possède désormais lui aussi ses prérequis stricts pour garantir un déploiement fiable et sécurisé.*
+
+* **Vérification de l'OS au lancement :** Ajout d'un contrôle strict des prérequis du système d'exploitation dès l'exécution du script, accompagné d'un *spinner* (indicateur de chargement visuel) pour patienter pendant l'analyse.
+* **Vérification des droits d'exécution (Root) :** Le script exige désormais les privilèges administrateur pour s'exécuter et verrouille automatiquement ses propres permissions (`chmod 700` / `chown root:root`) pour empêcher toute altération locale.
+* **Test de la connectivité Internet :** Vérification active de la connexion réseau dès le lancement. En cas d'échec, le script propose un "mode hors-ligne" assumé pour permettre l'utilisation sur des réseaux locaux (LAN) isolés.
+* **Vérification intelligente de l'espace disque :** Analyse précise du stockage calculant l'espace libre combiné au volume des données déjà synchronisées (bases Monero/Tari), garantissant le minimum requis (250 Go) avant de lancer le déploiement.
+* **Optimisations système au choix :** Les améliorations et modifications du système ne sont plus imposées mais proposées en option pour plus de flexibilité. 
+* **DNS Anti-Censure :** À titre d'exemple, l'utilisateur est désormais invité à valider l'activation de la résolution DNS alternative (ex : "Voulez-vous activer le DNS Anti-Censure Cloudflare ? (o/n)").
+
+---
+
 ## 🛠 v1.0.0 - Fondations & Refactoring (Prochaine version)
 *L'objectif de cette version est la stabilité, la propreté du code et la validation sur les environnements standards.*
 
