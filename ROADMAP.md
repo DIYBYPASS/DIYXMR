@@ -27,7 +27,7 @@ Voici la feuille de route de DIYXMR et ses prochaines évolutions pour transform
 *Renforcer la robustesse du système et le respect de la configuration réseau de l'hôte.*
 
 * **Gestion d'état UFW (Snapshots)** : Sauvegarde automatique des règles UFW existantes lors du premier lancement. Proposition de restauration de cet état initial en cas de désinstallation du stack.
-* **Système de notification des mises à jour** : Détection de la dernière release GitHub et affichage d'une alerte visuelle directement dans le TUI si une nouvelle version du script `diyxmr.sh` est disponible.
+* **Vérification d'intégrité du script** : Validation automatique de l'authenticité des fichiers via vérification du hash (SHA-256) ou de la signature (GPG) avant toute exécution ou mise à jour, garantissant une protection contre les altérations.
 
 ---
 
