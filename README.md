@@ -30,6 +30,10 @@ Il ne suffit pas de trouver la solution, il faut **être le premier** à la tran
 Il est impossible d'avoir un stack à la fois **anonyme** (lent) et **performant** (rapide) pour le minage.
 Ce script transforme votre machine en serveur de minage dédié : **ne l'utilisez pas comme portefeuille ni comme nœud privé**.
 
+Gardez à l'esprit cette séparation stricte :
+- **Le minage** nécessite d'allier sécurité et performance brute.
+- **Vos transactions** nécessitent d'allier sécurité et anonymat absolu.
+
 ---
 
 ## ✨ Fonctionnalités Principales
@@ -190,6 +194,8 @@ Pour ceux qui font du Spec Mining (j’en fais partie), dans le TUI, appuyez sur
 Cela **arrête et désactive** tous les services du stack sans rien supprimer. Vous pourrez alors miner d’autres projets à côté avec 100 % de vos ressources.
 
 Quand le Spec Mining est plus calme, relancez simplement le script : il va analyser votre système et **tout remettre en route automatiquement** (services, firewall, etc.).
+
+Mieux encore : **dédiez un SSD NVMe chiffré** exclusivement à votre stack Monero. Le spec mining impliquant souvent d'exécuter des logiciels non vérifiés, le risque d'infecter son disque avec des malwares est élevé. En utilisant deux SSD distincts (par exemple, un de 500 Go pour Monero et un autre de 500 Go pour le spec mining), vous isolez physiquement vos environnements. Dès que le spec mining devient moins intéressant, il vous suffit de *rebooter* votre rig sur le disque Monero, sain et sécurisé.
 
 Dans une France, une Europe et un monde où les gouvernements deviennent **de plus en plus autoritaires** et où les libertés reculent, **le XMR a un bel avenir devant lui**.
 
